@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import { Layout } from './components/layout/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { TransactionsPage } from './pages/TransactionsPage';
-import {
-  BudgetsPlaceholder,
-  InsightsPlaceholder
-} from './pages/RoutePlaceholders';
+import { BudgetsPage } from './pages/BudgetsPage';
+import { InsightsPlaceholder } from './pages/RoutePlaceholders';
 import './styles/main.css';
 
 export function App() {
@@ -24,7 +22,7 @@ export function App() {
       case 'transactions':
         return <TransactionsPage />;
       case 'budgets':
-        return <BudgetsPlaceholder onNavigate={(route) => setActiveRoute(route)} />;
+        return <BudgetsPage />;
       case 'insights':
         return <InsightsPlaceholder onNavigate={(route) => setActiveRoute(route)} />;
       default:

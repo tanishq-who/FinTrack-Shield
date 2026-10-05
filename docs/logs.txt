@@ -579,6 +579,145 @@ Actions Taken:
 * Built transactionService with async in-memory store and future API integration points
 * Created responsive TransactionsPage with accessible filters, desktop table, and mobile cards
 * Implemented accessible Add/Edit modal with client-side field validation and Delete confirmation dialog
+* Verified navigation continuity between Dashboard and Transactions
+
+================================================================================
+[2026-10-05T14:05:00+05:30] Budgets Page Architecture & Full Implementation
+================================================================================
+User Prompt (verbatim):
+Continue the FinTrack frontend implementation.
+
+IMPORTANT:
+- FRONTEND UI ONLY.
+- Do NOT modify backend, authentication, database, security logic, admin features, exports, or AI.
+- Do NOT create a new frontend folder.
+- Reuse the existing src structure, components, styles, and navigation.
+- Do NOT commit or push.
+
+Build the Budgets page.
+
+Requirements:
+
+1. Budgets page
+   - Page title: Budgets
+   - Short description
+   - "Create Budget" button
+   - Show current month clearly
+
+2. Budget overview
+   Display:
+   - Total monthly budget
+   - Total spent
+   - Remaining amount
+   - Number of categories over budget
+
+3. Category budget cards/list
+   For each category show:
+   - Category name
+   - Budget limit
+   - Amount spent
+   - Remaining amount
+   - Percentage used
+   - Progress bar
+
+   Status:
+   - Green: safe
+   - Yellow: approaching limit
+   - Red: overspent
+
+4. Create Budget
+   Modal/drawer containing:
+   - Category
+   - Monthly budget amount
+   - Month
+   - Save button
+   - Cancel button
+
+   Add client-side validation.
+
+5. Edit Budget
+   - Allow editing an existing category budget
+   - Reuse the same form
+
+6. Delete Budget
+   - Add delete action
+   - Show confirmation before deleting
+
+7. Budget states
+   - Loading
+   - Empty state
+   - Error state
+   - Normal state
+
+8. Data/service layer
+   - Create/reuse budget service
+   - If backend endpoint is not ready, use clearly separated mock data
+   - Keep API calls isolated for later backend integration
+   - Do not hardcode backend URLs throughout components
+
+9. Responsive design
+   - Desktop and tablet layout
+   - Mobile-friendly cards
+   - No horizontal overflow
+
+10. Design
+   - Reuse existing FinTrack styles
+   - Dark navy + white + emerald/teal theme
+   - Clean professional finance dashboard
+   - Accessible and keyboard friendly
+
+11. Navigation
+   - Connect Budgets to the existing sidebar/navbar
+   - Do not break Dashboard or Transactions
+
+12. Verification
+   - Run the frontend build
+   - Fix all errors
+   - Verify Dashboard
+   - Verify Transactions
+   - Verify Budgets
+   - Test create/edit/delete interactions
+
+13. Documentation
+   - Update docs only if repository instructions require it.
+
+When finished, report:
+- files created/modified
+- route added
+- components added
+- service/mock data added
+- build/test result
+- backend integration points
+
+Do NOT commit or push.
+
+Agent Response:
+Architected and implemented the complete Budgets page for FinTrack Shield. Developed budgetService with full CRUD operations backed by an in-memory mock store with realistic monthly budget limits and spend tracking. Built BudgetOverviewCard summarizing total allocated budget, total spent, net remaining amount, and alert pill for over-budget categories. Created category BudgetCard with three-tier threshold progress bars (Safe emerald <80%, Warning amber 80-99%, Overspent red >=100%). Implemented accessible Add/Edit modal with validation, Delete confirmation dialog, and full state support (Loading, Empty, Error, Normal). Connected the route in App.jsx and verified 0 build errors.
+
+Agent Response Summary:
+Built the Budgets page with overall monthly budget metrics, threshold-aware category cards, Add/Edit/Delete modals, and decoupled budgetService. Linked the route in App.jsx without impacting Dashboard or Transactions. Successfully verified production build with zero errors and no backend modifications.
+
+Commit SHA:
+Pending user manual commit (as requested: 'Do not commit or push.')
+
+Files Modified / Created:
+* src/frontend/src/services/mockBudgetsData.js (Created)
+* src/frontend/src/services/budgetService.js (Created)
+* src/frontend/src/components/budgets/BudgetOverviewCard.jsx (Created)
+* src/frontend/src/components/budgets/BudgetCard.jsx (Created)
+* src/frontend/src/components/budgets/BudgetModal.jsx (Created)
+* src/frontend/src/components/budgets/DeleteBudgetModal.jsx (Created)
+* src/frontend/src/pages/BudgetsPage.jsx (Created)
+* src/frontend/src/App.jsx (Modified)
+* src/frontend/src/styles/main.css (Modified)
+* docs/logs.txt (Modified)
+
+Actions Taken:
+* Appended turn 8 log entry to docs/logs.txt
+* Created mockBudgetsData and budgetService with CRUD operations
+* Implemented BudgetOverviewCard and threshold-aware BudgetCard components
+* Implemented BudgetModal and DeleteBudgetModal with accessible keyboard controls
+* Built BudgetsPage with Loading, Empty, Error, and Populated states
 * Connected route in App.jsx and tested production build
 
 ================================================================================

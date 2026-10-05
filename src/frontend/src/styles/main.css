@@ -1371,3 +1371,323 @@ html, body {
     flex-direction: column;
   }
 }
+
+/* ==========================================================================
+   Budgets Page Styles & Threshold Meters
+   ========================================================================== */
+
+.current-month-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background-color: rgba(16, 185, 129, 0.12);
+  color: var(--color-emerald-500);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-full);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Budget Overview Card */
+.budget-overview-card {
+  padding: var(--space-6);
+  gap: var(--space-5);
+  background-color: var(--color-surface);
+}
+
+.budget-overview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.budget-month-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-emerald-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.budget-overview-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.budget-alert-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.alert-danger {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.alert-success {
+  background-color: var(--color-emerald-50);
+  color: var(--color-emerald-600);
+  border: 1px solid var(--color-emerald-100);
+}
+
+.budget-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-surface-border);
+  border-bottom: 1px solid var(--color-surface-border);
+}
+
+.overview-metric-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-size: 0.78rem;
+  color: var(--color-text-dark-muted);
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  letter-spacing: -0.02em;
+}
+
+/* Progress Track and Fill */
+.budget-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.budget-progress-track {
+  width: 100%;
+  height: 8px;
+  background-color: var(--color-surface-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.budget-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s ease;
+}
+
+/* Section Header Compact */
+.section-header-compact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.section-subheading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.status-legend-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 0.75rem;
+  color: var(--color-text-light-muted);
+  flex-wrap: wrap;
+}
+
+.legend-item-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+.dot-safe { background-color: var(--color-emerald-500); }
+.dot-warning { background-color: var(--color-warning); }
+.dot-overspent { background-color: var(--color-danger); }
+
+/* Budgets Grid */
+.budgets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-5);
+}
+
+/* Individual Category Budget Card */
+.budget-category-card {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.budget-category-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.budget-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.category-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.category-indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.category-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.category-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.budget-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Status Pills */
+.budget-status-pill {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.budget-status-safe {
+  background-color: var(--color-emerald-50);
+  color: var(--color-emerald-600);
+  border: 1px solid var(--color-emerald-100);
+}
+
+.budget-status-warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.budget-status-overspent {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.budget-bar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.budget-bar-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.spent-label {
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.percent-label {
+  font-weight: 700;
+}
+
+.budget-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-surface-border-subtle);
+}
+
+.footer-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.footer-label {
+  font-size: 0.72rem;
+  color: var(--color-text-dark-muted);
+}
+
+.footer-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+/* Responsive Overrides for Budgets */
+@media (max-width: 1024px) {
+  .budgets-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .budget-overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: var(--space-4);
+  }
+}
+
+@media (max-width: 768px) {
+  .budgets-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-legend-group {
+    display: none;
+  }
+}
