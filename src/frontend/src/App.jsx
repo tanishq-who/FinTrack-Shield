@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Layout } from './components/layout/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { TransactionsPage } from './pages/TransactionsPage';
@@ -10,8 +10,20 @@ import { ProfileModal } from './components/auth/ProfileModal';
 import { authService } from './services/authService';
 import './styles/main.css';
 
+const VALID_ROUTES = ['dashboard', 'transactions', 'budgets', 'insights', 'admin'];
+
+const getInitialRoute = () => {
+  if (typeof window !== 'undefined' && window.location.hash) {
+    const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+    if (VALID_ROUTES.includes(hash)) {
+      return hash;
+    }
+  }
+  return 'dashboard';
+};
+
 export function App() {
-  const [activeRoute, setActiveRoute] = useState('dashboard');
+  const [activeRoute, setActiveRoute] = useState(getInitialRoute);
   const [stateMode, setStateMode] = useState('loaded');
   const [user, setUser] = useState(() => authService.getCurrentUser());
   const [authModalOpen, setAuthModalOpen] = useState(!authService.isAuthenticated());
@@ -77,6 +89,28 @@ export function App() {
 
   const isAuthenticated = Boolean(user && authService.isAuthenticated());
 
+  const handleNavigate = useCallback((route) => {
+    if (VALID_ROUTES.includes(route)) {
+      setActiveRoute(route);
+      if (typeof window !== 'undefined') {
+        window.location.hash = `#${route}`;
+      }
+    }
+  }, []);
+
+  // Listen to browser hash changes (Back/Forward buttons & manual URL hash)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase();
+      if (VALID_ROUTES.includes(hash)) {
+        setActiveRoute(hash);
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const renderActivePage = () => {
     // Protected route gate: redirect unauthenticated users away from protected finance pages
     if (!isAuthenticated) {
@@ -110,22 +144,37 @@ export function App() {
         return (
           <DashboardPage
             simulatedState={stateMode}
-            onNavigate={(route) => setActiveRoute(route)}
+            onNavigate={handleNavigate}
           />
         );
       case 'transactions':
-        return <TransactionsPage />;
+        return (
+          <TransactionsPage
+            simulatedState={stateMode}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'budgets':
-        return <BudgetsPage />;
+        return (
+          <BudgetsPage
+            simulatedState={stateMode}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'insights':
-        return <InsightsPage simulatedState={stateMode} onNavigate={(route) => setActiveRoute(route)} />;
+        return (
+          <InsightsPage
+            simulatedState={stateMode}
+            onNavigate={handleNavigate}
+          />
+        );
       case 'admin':
         return <AdminPage />;
       default:
         return (
           <DashboardPage
             simulatedState={stateMode}
-            onNavigate={(route) => setActiveRoute(route)}
+            onNavigate={handleNavigate}
           />
         );
     }
@@ -135,7 +184,7 @@ export function App() {
     <>
       <Layout
         activeRoute={activeRoute}
-        onNavigate={(route) => setActiveRoute(route)}
+        onNavigate={handleNavigate}
         stateMode={stateMode}
         onChangeStateMode={(mode) => setStateMode(mode)}
         user={user}

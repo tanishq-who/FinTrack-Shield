@@ -5,7 +5,7 @@ import { TransactionModal } from '../components/transactions/TransactionModal';
 import { DeleteConfirmationModal } from '../components/transactions/DeleteConfirmationModal';
 import { transactionService } from '../services/transactionService';
 
-export const TransactionsPage = () => {
+export const TransactionsPage = ({ simulatedState = 'loaded', onNavigate }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -183,14 +183,14 @@ export const TransactionsPage = () => {
       </section>
 
       {/* 3. States & Transactions Ledger */}
-      {loading ? (
+      {simulatedState === 'loading' || (loading && simulatedState === 'loaded') ? (
         <div className="surface-card" style={{ padding: '2rem' }} aria-busy="true" aria-label="Loading transactions">
           <div className="skeleton skeleton-title"></div>
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="skeleton skeleton-text" style={{ height: '36px', margin: '12px 0' }}></div>
           ))}
         </div>
-      ) : error ? (
+      ) : simulatedState === 'error' || error ? (
         <div className="surface-card state-container" role="alert">
           <div className="state-icon-box state-error-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -200,12 +200,12 @@ export const TransactionsPage = () => {
             </svg>
           </div>
           <h3 className="state-title">Error Loading Transactions</h3>
-          <p className="state-description">{error}</p>
+          <p className="state-description">{error || 'Simulation error: Transaction ledger database unavailable.'}</p>
           <button className="state-action-btn" onClick={loadTransactions}>
             Retry
           </button>
         </div>
-      ) : transactions.length === 0 ? (
+      ) : simulatedState === 'empty' || transactions.length === 0 ? (
         <div className="surface-card state-container" role="status">
           <div className="state-icon-box state-empty-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
