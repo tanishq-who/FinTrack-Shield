@@ -86,9 +86,17 @@ src/
 ```
 
 ### 2.3 Technology Stack Rationale
+<<<<<<< HEAD
 - **Backend Framework:** Express.js (v4) — Lightweight, battle-tested HTTP server.
 - **Database & Persistence:** Node.js 24 native `node:sqlite` (`DatabaseSync`) — File-based, zero native compilation, zero external C++ dependencies, synchronous queries eliminating async race conditions, WAL mode for concurrent reads.
 - **Authentication & Cryptography:** `bcryptjs` (12 rounds) for salted password hashing + `jsonwebtoken` (HS256) for stateless authentication.
+=======
+*Explain the tools selected and why alternatives were rejected:*
+- **Backend / API Framework:** (e.g., FastAPI, Express, Go Gin) — *Why chosen:*
+- **Frontend / Client:** React 18 + Vite (SPA with pure SVG charts, decoupled service layer, dark navy & white surface fintech theme, WCAG AA compliance) — *Why chosen: Fast bundling, component modularity, zero heavy chart dependencies, decoupled data service layer allowing seamless backend endpoint integration.*
+- **Database & Persistence:** (e.g., PostgreSQL, SQLite, Redis) — *Why chosen:*
+- **Authentication & Cryptography:** (e.g., Bcrypt/Argon2, PyJWT) — *Why chosen:*
+>>>>>>> 9ba6d85810861c3798e6b706d0ea472322ac2022
 
 ### 2.4 Defense-in-Depth Security Controls
 1. **Authentication & Session Security:** Salted bcrypt hashing (12 rounds), short-lived JWT tokens (8h), zero plaintext passwords in responses or logs.
@@ -103,10 +111,17 @@ src/
 
 | Milestone / Phase | Time Window | Key Objectives & Deliverables | Security Verification | Status |
 |---|---|---|---|---|
+<<<<<<< HEAD
 | **Phase 1: Foundation & Setup** | 0h – 4h | Onboarding agreement, repo structure, Express server, SQLite DB, models, auth routes, health check | Secret scan & baseline check | `✅ Done` |
 | **Phase 2: Core Domain & Auth** | 4h – 12h | Core finance APIs (Categories, Transactions, Budgets, Dashboard Summary) | Automated test suite (49 tests) | `✅ Done` |
 | **Phase 3: Security & Hardening**| 12h – 18h | Input validation, IDOR tests, rate limiting, error handling, security middleware, audit trails | Automated test suite & IDOR suite | `✅ Done` |
 | **Phase 4: Polish & Deployment**| 18h – 24h | Frontend integration sync, live cloud deployment, final docs & commit freeze | Live deployment URL check | `Planned` |
+=======
+| **Phase 1: Foundation & Setup** | 0h – 4h | Contract onboarding, repo setup, frontend scaffold & dashboard UI | Production build check passed | `In Progress` |
+| **Phase 2: Core Domain & Auth** | 4h – 12h | Core business logic, secure authentication & authorization | Auth test suite & crypto validation | `Planned` |
+| **Phase 3: Security & Hardening**| 12h – 18h | Input validation, rate limiting, error handling, security middleware | SAST scanning & edge case tests | `Planned` |
+| **Phase 4: Polish & Deployment**| 18h – 24h | UI polish, live cloud deployment, final docs & commit freeze | Live deployment URL check | `Planned` |
+>>>>>>> 9ba6d85810861c3798e6b706d0ea472322ac2022
 
 ---
 

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Dependency directories
 node_modules/
 **/node_modules/
@@ -18,3 +19,21 @@ data/
 # OS generated files
 .DS_Store
 Thumbs.db
+=======
+# Node dependencies & build artifacts
+node_modules/
+dist/
+dist-ssr/
+*.log
+
+# Environment secrets
+.env
+.env.local
+.env.*.local
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+>>>>>>> 9ba6d85810861c3798e6b706d0ea472322ac2022
