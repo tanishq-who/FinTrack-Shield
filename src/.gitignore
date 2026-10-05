@@ -1,0 +1,9 @@
+# FinTrack Shield — Git Ignore
+node_modules/
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.DS_Store
+Thumbs.db

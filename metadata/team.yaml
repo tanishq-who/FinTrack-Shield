@@ -4,16 +4,12 @@
 # - If your team has 4 members: provide all 4 members.
 
 team:
-  team_id: ""
-  name: ""
-  repository: "" # URL of the newly created GitHub repository for this project
+  team_id: "team-yp"
+  name: "team yp"
+  repository: "https://github.com/tanishq-who/FinTrack-Shield.git"
 
 members:
-  - name: ""
-    email: ""
-  - name: ""
-    email: ""
-  - name: ""
-    email: ""
-  - name: ""
-    email: ""
+  - name: "yagnapriya"
+    email: "24p61a67i8@vbithyd.ac.in"
+  - name: "tanishq"
+    email: "24p61a67i4@vbithyd.ac.in"

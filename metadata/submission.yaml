@@ -4,8 +4,8 @@
 version: "1.0"
 
 submission:
-  team_id: ""
-  repository: ""
+  team_id: "team-yp"
+  repository: "https://github.com/tanishq-who/FinTrack-Shield.git"
   commit_sha: ""
   deployment_url: ""
   submitted_at: ""

@@ -1,0 +1,20 @@
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Local database and data directories
+data/
+**/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Environment and secrets
+.env
+.env.local
+**/.env
+**/.env.local
+
+# OS generated files
+.DS_Store
+Thumbs.db

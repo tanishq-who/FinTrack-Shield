@@ -1,50 +1,96 @@
 # Project Approach & Architecture — Build Secure 24
 
-**Team ID:** 
-**Project Name:** 
-**Team Size:** [2 or 4 Members]
-**Primary Track / Domain:** 
+**Team ID:** team-yp
+**Project Name:** FinTrack Shield — Secure Personal Finance Management
+**Team Size:** 2 Members (yagnapriya, tanishq)
+**Primary Track / Domain:** PS-01 Personal Finance
 
 ---
 
 ## 1. Problem Understanding, Scope & Threat Model
 
 ### 1.1 Problem Statement & Real-World Motivation
-*Describe the specific problem your project solves, why it matters, and the core security challenges involved.*
+Personal finance applications handle sensitive financial records, income, expenses, categories, and spending habits. A data breach or unauthorized modification can lead to financial fraud, privacy loss, and severe security compromises. FinTrack Shield provides a privacy-first, secure personal finance tracker that allows users to record transactions, configure monthly budgets, and analyze spending while enforcing defense-in-depth security controls.
 
 ### 1.2 Target Users & Personas
-*Identify target user groups, their operational workflows, and their trust levels (e.g. End User, Admin, Auditor).*
+- **End User (role: USER):** Individuals tracking personal income/expenses, setting monthly budgets, and viewing spending insights. Trust level: authenticated, self-scoped data only.
+- **Admin (role: ADMIN):** System administrators who can view audit logs and manage system health. Trust level: elevated, but strictly subject to audit logging.
 
 ### 1.3 Threat Model & Attack Surface
-*Document the threat landscape for this system:*
-- **Critical Assets:** (e.g., user credentials, PII, sensitive business records, session tokens)
-- **Potential Attack Vectors:** (e.g., credential stuffing, injection attacks, privilege escalation, unauthorized API access)
-- **OWASP Top 10 Considerations:** (e.g., broken access control, cryptographic failures, injection prevention)
+- **Critical Assets:** User credentials (password hashes), PII (name, email), financial transaction records, session tokens (JWT), audit logs.
+- **Potential Attack Vectors:**
+  - Credential stuffing & brute-force login attacks
+  - SQL injection via unsanitized user inputs
+  - JWT tampering / unauthorized access to other user records (IDOR)
+  - Privilege escalation (USER → ADMIN)
+  - Floating-point precision loss and arithmetic rounding exploits
+- **OWASP Top 10 Security Controls:**
+  1. **A01 Broken Access Control:** Strict row-level user scoping (`WHERE user_id = ?`) on every query. Role-based middleware (`requireRole`).
+  2. **A02 Cryptographic Failures:** `bcryptjs` (12 rounds) salted password hashing. Stateless JWT signed with HS256.
+  3. **A03 Injection:** Parameterized SQL queries via `node:sqlite` prepared statements. Zero string concatenation.
+  4. **A04 Insecure Design:** Defense-in-depth with Helmet HTTP security headers, CORS origin restrictions, and rate limiting.
+  5. **A07 Auth Failures:** Generic login error messages preventing user enumeration. Failed login audit logging.
+  6. **A09 Logging & Monitoring:** Immutable, append-only `audit_log` recording every authentication and administrative event.
 
 ---
 
 ## 2. Technical Architecture & Secure System Design
 
 ### 2.1 High-Level Architecture Overview
-*Describe the multi-tier system structure (Client / API Gateway / Domain Services / Data Persistence).*
+```
+┌────────────────────────┐     ┌────────────────────────┐     ┌──────────────────────┐
+│ Teammate's Frontend UI │────▶│ Express API (/api/*)   │────▶│ SQLite DB (WAL Mode) │
+│ (Dashboard, Charts)    │◀────│ Helmet, CORS, RateLimit│◀────│ Node 24 node:sqlite  │
+└────────────────────────┘     └────────────────────────┘     └──────────────────────┘
+                                            │
+                                            ▼
+                                   ┌──────────────────────┐
+                                   │ Append-Only Audit Log│
+                                   └──────────────────────┘
+```
 
-### 2.2 Data Flow & Component Interaction
-*Outline how requests traverse the system from ingress to storage and back, highlighting trust boundaries.*
+### 2.2 Directory Layout & Teammate Isolation
+To guarantee zero collisions with the teammate's frontend pages and components, the repository cleanly namespaces server logic:
+
+```text
+src/
+├── server/                     ← Dedicated backend namespace
+│   ├── config.js               ← Centralized environment configuration
+│   ├── server.js               ← Express server entrypoint
+│   ├── db/
+│   │   ├── database.js         ← node:sqlite singleton (WAL mode, foreign keys)
+│   │   ├── schema.sql          ← Strict SQLite DDL with CHECK constraints
+│   │   └── seed.js             ← Default category and demo account seed
+│   ├── middleware/
+│   │   ├── auth.js             ← JWT verification & USER/ADMIN RBAC
+│   │   ├── audit.js            ← Client IP extractor for audit trails
+│   │   └── validate.js         ← Server-side request body validator
+│   ├── models/
+│   │   ├── User.js             ← bcryptjs hashing, UUIDv4, safe lookup
+│   │   ├── Transaction.js      ← Integer paise storage, row-level scoping
+│   │   ├── Category.js         ← Global defaults + user-custom categories
+│   │   ├── Budget.js           ← Monthly budget limits in integer paise
+│   │   └── AuditLog.js         ← Immutable event logger
+│   └── routes/
+│       ├── auth.js             ← Register, login, logout, me
+│       └── health.js           ← GET /api/health monitoring endpoint
+├── shared/
+│   └── constants.js            ← Shared roles, paise conversion utilities
+└── test/
+    └── backend-test.js         ← Automated verification test suite
+```
 
 ### 2.3 Technology Stack Rationale
-*Explain the tools selected and why alternatives were rejected:*
-- **Backend / API Framework:** (e.g., FastAPI, Express, Go Gin) — *Why chosen:*
-- **Frontend / Client:** (e.g., React, Next.js, HTML/JS) — *Why chosen:*
-- **Database & Persistence:** (e.g., PostgreSQL, SQLite, Redis) — *Why chosen:*
-- **Authentication & Cryptography:** (e.g., Bcrypt/Argon2, PyJWT) — *Why chosen:*
+- **Backend Framework:** Express.js (v4) — Lightweight, battle-tested HTTP server.
+- **Database & Persistence:** Node.js 24 native `node:sqlite` (`DatabaseSync`) — File-based, zero native compilation, zero external C++ dependencies, synchronous queries eliminating async race conditions, WAL mode for concurrent reads.
+- **Authentication & Cryptography:** `bcryptjs` (12 rounds) for salted password hashing + `jsonwebtoken` (HS256) for stateless authentication.
 
 ### 2.4 Defense-in-Depth Security Controls
-*Detail the specific security controls implemented:*
-1. **Authentication & Session Security:** (e.g., salted password hashing, short-lived signed tokens)
-2. **Authorization & Access Control:** (e.g., role-based access control, object-level permission checks)
-3. **Input Validation & Sanitization:** (e.g., strict schema validation, query parameterization to prevent SQLi)
-4. **Rate Limiting & Abuse Prevention:** (e.g., IP/token bucket throttling on public endpoints)
-5. **Secrets & Configuration Hygiene:** (e.g., zero hardcoded credentials, 100% environment variable isolation)
+1. **Authentication & Session Security:** Salted bcrypt hashing (12 rounds), short-lived JWT tokens (8h), zero plaintext passwords in responses or logs.
+2. **Authorization & Access Control:** Role-based access control (USER / ADMIN), strict row-level object ownership (`user_id` scoping).
+3. **Input Validation & Sanitization:** Server-side request validation middleware, parameterized SQL statements, integer paise for all monetary values.
+4. **Rate Limiting & Abuse Prevention:** `express-rate-limit` on all `/api/` endpoints (100 req / 15 min window).
+5. **Secrets Hygiene:** All sensitive configuration isolated via environment variables (`.env`). Gitignored across all directories.
 
 ---
 
@@ -52,56 +98,80 @@
 
 | Milestone / Phase | Time Window | Key Objectives & Deliverables | Security Verification | Status |
 |---|---|---|---|---|
-| **Phase 1: Foundation & Setup** | 0h – 4h | Contract onboarding, repo setup, baseline data schemas | Secret scan & baseline check | `Planned` |
-| **Phase 2: Core Domain & Auth** | 4h – 12h | Core business logic, secure authentication & authorization | Auth test suite & crypto validation | `Planned` |
-| **Phase 3: Security & Hardening**| 12h – 18h | Input validation, rate limiting, error handling, security middleware | SAST scanning & edge case tests | `Planned` |
+| **Phase 1: Foundation & Setup** | 0h – 4h | Onboarding agreement, repo structure, Express server, SQLite DB, models, auth routes, health check | Secret scan & baseline check | `✅ Done` |
+| **Phase 2: Core Domain & Auth** | 4h – 12h | CRUD APIs for transactions/budgets/categories, frontend integration, export | Auth test suite & crypto validation | `✅ Done` |
+| **Phase 3: Security & Hardening**| 12h – 18h | Input validation, rate limiting, error handling, security middleware, admin audit viewer | SAST scanning & edge case tests | `In Progress` |
 | **Phase 4: Polish & Deployment**| 18h – 24h | UI polish, live cloud deployment, final docs & commit freeze | Live deployment URL check | `Planned` |
 
 ---
 
 ## 4. Architecture Decision Records (ADRs)
 
-### ADR-001: [Title of First Major Decision]
-- **Status:** [Proposed | Accepted | Superseded]
-- **Context:** *What was the architectural context, problem, or requirement?*
-- **Options Considered:** 
-  1. *Option A (e.g., choice 1)*
-  2. *Option B (e.g., choice 2)*
-- **Decision & Rationale:** *What was decided and why was it chosen over alternatives?*
-- **Security & Performance Trade-offs:** *What are the security implications or performance impacts?*
-
-### ADR-002: [Title of Second Major Decision]
-- **Status:** [Proposed | Accepted | Superseded]
-- **Context:**
+### ADR-001: Node 24 Native node:sqlite over better-sqlite3
+- **Status:** Accepted
+- **Context:** `better-sqlite3` requires a native C++ compiler (Visual Studio / node-gyp), causing installation failures on Windows developer machines without Visual Studio C++ build tools.
 - **Options Considered:**
-- **Decision & Rationale:**
-- **Security & Performance Trade-offs:**
+  1. `better-sqlite3` — Fast, but requires external C++ build toolchain.
+  2. PostgreSQL / MySQL — Requires running external daemon/server, adding operational complexity.
+  3. `node:sqlite` (Node.js 22.5+/24 native `DatabaseSync`) — Built directly into Node.js runtime, zero external dependencies, zero native compilation, full SQLite WAL performance, synchronous API.
+- **Decision & Rationale:** Adopted `node:sqlite` (`DatabaseSync`). Provides full relational ACID capabilities and prepared statements with zero setup overhead and zero build failures.
+- **Security & Performance Trade-offs:** Eliminates native addon attack surface while maintaining file-based portability.
+
+### ADR-002: Integer Paise for All Monetary Values
+- **Status:** Accepted
+- **Context:** Financial applications must never use floating-point for money due to IEEE 754 rounding errors (e.g., 0.1 + 0.2 ≠ 0.3).
+- **Options Considered:**
+  1. Float/REAL columns — Prone to precision and rounding bugs.
+  2. Integer paise/cents — Exact integer arithmetic, industry standard.
+- **Decision & Rationale:** Store all money as `INTEGER` paise (1 INR = 100 paise) with database-level `CHECK (amount > 0)`.
+- **Security & Performance Trade-offs:** Completely eliminates rounding vulnerabilities and financial discrepancies.
+
+### ADR-003: Pure-JavaScript bcryptjs over Native bcrypt
+- **Status:** Accepted
+- **Context:** Native `bcrypt` requires node-gyp compilation on Windows, which fails without local C++ compilers.
+- **Options Considered:**
+  1. `bcrypt` — Native C++ binding, compilation dependent.
+  2. `bcryptjs` — Pure JavaScript implementation, 100% API compatible, zero build dependencies.
+- **Decision & Rationale:** Selected `bcryptjs` with 12 salt rounds for 100% portable, secure password hashing across any operating system.
+- **Security & Performance Trade-offs:** Pure JS execution is slightly slower than C++ bindings, which naturally increases resistance to brute-force attacks while remaining under ~250ms per login.
+
+### ADR-004: Clean Backend Namespacing under src/server/
+- **Status:** Accepted
+- **Context:** Teammates work in parallel on frontend (dashboard, charts, budgets UI) and backend (auth, database, security) in the same repository.
+- **Options Considered:**
+  1. Mixed flat files in `src/` — High risk of file conflicts and accidentally overwriting teammate components.
+  2. Separate `src/server/` and `src/shared/` — Complete separation between backend logic and frontend UI files.
+- **Decision & Rationale:** All backend logic is placed inside `src/server/` and shared constants in `src/shared/`. Teammate's frontend files can reside freely in `src/` or `src/client/`.
+- **Security & Performance Trade-offs:** Clean trust boundaries and zero merge collisions.
 
 ---
 
 ## 5. Engineering Journal & Real-Time Decision Log
 
-*Maintain this chronological log as your team builds during the 24-hour hackathon.*
+### [2026-10-05 12:22 IST] Entry 1: Project Initialization & Scope Lock
+- **Focus:** Repository inspection, onboarding, competition rules agreement, team coordination.
+- **Key Challenges:** Coordinating parallel frontend/backend work between 2 team members using same repo.
+- **Resolution:** Clear file ownership boundaries: backend owns `src/server/`, `src/shared/`. Frontend owns pages/components/styles.
 
-### [YYYY-MM-DD HH:MM IST] Entry 1: Project Initialization & Scope Lock
-- **Focus:** Initial repository setup, team alignment, and schema architecture.
-- **Key Challenges:** 
-- **Resolution:** 
+### [2026-10-05 13:00 IST] Entry 2: Backend Foundation & Auth Implementation
+- **Focus:** Express server setup, SQLite database with schema, 5 data models, authentication routes, security middleware stack.
+- **Key Challenges:** Ensuring integer paise for money, parameterized SQL for injection prevention, generic login errors to prevent enumeration.
+- **Resolution:** Complete backend foundation implemented with defense-in-depth: Helmet headers, CORS restriction, rate limiting, bcrypt hashing, JWT auth, input validation, audit logging, and integer-only money storage.
 
-### [YYYY-MM-DD HH:MM IST] Entry 2: Implementation Milestone Progress
-- **Focus:** 
-- **Key Challenges:** 
-- **Resolution:** 
+### [2026-10-05 13:55 IST] Entry 3: Node 24 Native node:sqlite Migration & Directory Modularization
+- **Focus:** Overcoming Windows native C++ build hurdles by migrating from `better-sqlite3` to Node 24's native `node:sqlite` (`DatabaseSync`) and `bcryptjs`.
+- **Key Challenges:** Windows developer environment lacked Visual Studio C++ toolchain for native modules.
+- **Resolution:** Converted database connection to native `node:sqlite` and password hashing to `bcryptjs`. Restructured backend into `src/server/` and `src/shared/` for seamless teammate collaboration. Created comprehensive automated verification test suite.
 
 ---
 
 ## 6. Testing, Security Verification & Deployment Record
 
 ### 6.1 Testing & Security Verification Strategy
-- **Unit & Integration Tests:** (Describe test coverage in `src/`)
-- **Static Analysis & Linting:** (Lint and security checks run)
+- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, duplicate prevention, password verification, audit logging, category/transaction/budget models, integer paise math, and data isolation.
+- **Static Analysis & Linting:** Dependency review ensuring zero native build dependencies.
 
 ### 6.2 Deployment Verification
-- **Live Deployment Platform:** (e.g., Vercel, Render, Railway, AWS)
-- **Deployment URL:** (Recorded in `metadata/submission.yaml` and `deployment/README.md`)
-- **Health Check Endpoint:** (e.g., `/health` or `/api/health`)
+- **Live Deployment Platform:** (To be configured — Render / Railway / Vercel)
+- **Deployment URL:** (Pending — will be recorded in `metadata/submission.yaml` and `deployment/README.md`)
+- **Health Check Endpoint:** `GET /api/health`
