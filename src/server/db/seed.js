@@ -3,8 +3,8 @@
  *
  * Seeds:
  * 1. Default categories (system-wide, user_id = NULL)
- * 2. Demo user account (demo@fintrack.local / Demo@1234, role: 'USER')
- * 3. Admin user account (admin@fintrack.local / Admin@1234, role: 'ADMIN')
+ * 2. Demo user account (demo@fintrack.local, role: 'USER' - development only via DEMO_USER_PASSWORD)
+ * 3. Admin user account (admin@fintrack.local, role: 'ADMIN' - development only via ADMIN_PASSWORD)
  * 4. Realistic demo transactions & budgets for the demo account
  * 5. Corresponding immutable audit log trail
  *
@@ -17,11 +17,6 @@ const bcrypt = require('bcryptjs');
 const { getDb, closeDb } = require('./database');
 
 const SALT_ROUNDS = 12;
-const isProduction = process.env.NODE_ENV === 'production';
-
-// Demo seed credentials must come from environment variables or be clearly restricted to development-only setup.
-const demoPassword = process.env.DEMO_USER_PASSWORD || (!isProduction ? 'Demo@1234' : null);
-const adminPassword = process.env.ADMIN_PASSWORD || (!isProduction ? 'Admin@1234' : null);
 
 const DEFAULT_CATEGORIES = [
   { name: 'Salary',            icon: '💰', color: '#22c55e' },
@@ -36,9 +31,14 @@ const DEFAULT_CATEGORIES = [
   { name: 'Other',              icon: '📁', color: '#64748b' },
 ];
 
-async function seed() {
+async function seed(options = {}) {
   const db = getDb();
   const currentMonth = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  const isProduction = (options.nodeEnv || process.env.NODE_ENV) === 'production';
+
+  // Demo credentials must be read strictly from environment variables
+  const demoPassword = options.demoPassword !== undefined ? options.demoPassword : process.env.DEMO_USER_PASSWORD;
+  const adminPassword = options.adminPassword !== undefined ? options.adminPassword : process.env.ADMIN_PASSWORD;
 
   // 1. Insert default categories
   const insertCat = db.prepare(
@@ -65,12 +65,28 @@ async function seed() {
     catMap[c.name] = c.id;
   }
 
-  // 2. Demo User Account
-  let demoUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@fintrack.local');
-  if (!demoUser) {
-    if (!demoPassword) {
-      console.log('ℹ️  Production mode: DEMO_USER_PASSWORD not configured. Skipping demo user creation.');
-    } else {
+  // Enforce seeding rules:
+  // In production, never create demo or administrative accounts
+  if (isProduction) {
+    console.log('🔒 Production mode: Demo and administrator account creation is strictly disabled.');
+  } else {
+    // In development, if required credentials are missing, stop with a clear setup message
+    if (!demoPassword || !adminPassword) {
+      const missing = [];
+      if (!demoPassword) missing.push('DEMO_USER_PASSWORD');
+      if (!adminPassword) missing.push('ADMIN_PASSWORD');
+      const setupMsg = `Database seeding stopped: Missing required environment variable(s): ${missing.join(', ')}.\n` +
+        `Please set ${missing.join(' and ')} in your environment or src/.env before seeding development accounts.`;
+      console.error(`❌ ${setupMsg}`);
+      throw new Error(setupMsg);
+    }
+  }
+
+  // 2. Demo User Account (development only, when credentials supplied via env)
+  let demoUser = null;
+  if (!isProduction && demoPassword) {
+    demoUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@fintrack.local');
+    if (!demoUser) {
       const hash = await bcrypt.hash(demoPassword, SALT_ROUNDS);
       const demoId = uuidv4();
       db.prepare(
@@ -84,17 +100,16 @@ async function seed() {
         `INSERT INTO audit_log (id, user_id, action, metadata)
          VALUES (?, ?, ?, ?)`
       ).run(uuidv4(), demoId, 'SEED_DEMO_ACCOUNT', JSON.stringify({ note: 'Auto-seeded user for testing' }));
+    } else {
+      console.log('ℹ️  Demo account already exists.');
     }
-  } else {
-    console.log('ℹ️  Demo account already exists.');
   }
 
-  // 3. Admin Account
-  let adminUser = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@fintrack.local');
-  if (!adminUser) {
-    if (!adminPassword) {
-      console.log('ℹ️  Production mode: ADMIN_PASSWORD not configured. Skipping admin user creation.');
-    } else {
+  // 3. Admin Account (development only, when credentials supplied via env)
+  let adminUser = null;
+  if (!isProduction && adminPassword) {
+    adminUser = db.prepare('SELECT id FROM users WHERE email = ?').get('admin@fintrack.local');
+    if (!adminUser) {
       const adminHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
       const adminId = uuidv4();
       db.prepare(
@@ -108,10 +123,11 @@ async function seed() {
         `INSERT INTO audit_log (id, user_id, action, metadata)
          VALUES (?, ?, ?, ?)`
       ).run(uuidv4(), adminId, 'SEED_ADMIN_ACCOUNT', JSON.stringify({ note: 'Auto-seeded administrator' }));
+    } else {
+      console.log('ℹ️  Admin account already exists.');
     }
-  } else {
-    console.log('ℹ️  Admin account already exists.');
   }
+
 
   // 4. Sample Transactions for Demo User (if demo user exists and none exist)
   if (demoUser && demoUser.id) {
@@ -202,7 +218,9 @@ async function seed() {
     }
   }
 
-  closeDb();
+  if (options.autoClose !== false) {
+    closeDb();
+  }
   console.log('🌱 Seed complete.');
 }
 

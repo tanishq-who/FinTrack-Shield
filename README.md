@@ -128,8 +128,8 @@ Open your browser at: **`http://localhost:3000`**
 
 | Account | Email | Password | Role | Description |
 |---------|-------|----------|------|-------------|
-| **Demo User** | `demo@fintrack.local` | `Demo@1234` | `USER` | Pre-loaded with current-month salary credit, expense transactions, and category budgets. |
-| **Security Admin** | `admin@fintrack.local` | `Admin@1234` | `ADMIN` | Privileged access to Security & Audit Center (`/admin`), user registry, and system audit trail. |
+| **Demo User** | `demo@fintrack.local` | Sourced from `DEMO_USER_PASSWORD` | `USER` | Pre-loaded with current-month salary credit, expense transactions, and category budgets. |
+| **Security Admin** | `admin@fintrack.local` | Sourced from `ADMIN_PASSWORD` | `ADMIN` | Privileged access to Security & Audit Center (`/admin`), user registry, and system audit trail. |
 
 *(You can also click **Register** to create a fresh user account).*
 

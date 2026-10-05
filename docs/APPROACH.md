@@ -206,7 +206,7 @@ src/
   1. Built and mounted `/api/transactions/export` supporting RFC-compliant CSV with rupee conversion and JSON formats.
   2. Built `src/server/routes/admin.js` protected by `requireAuth` and `requireRole('ADMIN')` for user inspection, system metrics, and audit log exploration.
   3. Built `AdminPage.jsx` integrated into the React frontend and accessible to users with the `ADMIN` role.
-  4. Enhanced database seeder (`seed.js`) to create an administrator account (`admin@fintrack.local` / `Admin@1234`), 10 default categories, and realistic current-month income/expense transactions and budgets for the demo user (`demo@fintrack.local` / `Demo@1234`).
+  4. Enhanced database seeder (`seed.js`) to create an administrator account (`admin@fintrack.local`), 10 default categories, and realistic current-month income/expense transactions and budgets for the demo user (`demo@fintrack.local`) using environment-configured passwords.
   5. Authored and executed `src/test/e2e-verify.js` verifying all 11 requirements with 100% pass rate.
   6. Verified frontend production build compiles 67 modules with 0 errors (`vite build` in 29.9s). Updated all deployment, README, and submission documentation.
 

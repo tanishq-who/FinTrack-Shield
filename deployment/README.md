@@ -22,12 +22,12 @@ The application enforces defense-in-depth:
 - **Access Credentials for Evaluators:**
   - **Standard User (Finance Ledger & Budgets):**
     - Email: `demo@fintrack.local`
-    - Password: `Demo@1234`
+    - Password: Sourced from `DEMO_USER_PASSWORD` environment variable
     - Role: `USER`
     - Pre-seeded with: Monthly salary credit, groceries, transit card, utilities, dining expenses, and 3 monthly category budgets.
   - **Security Administrator (Audit & Telemetry Center):**
     - Email: `admin@fintrack.local`
-    - Password: `Admin@1234`
+    - Password: Sourced from `ADMIN_PASSWORD` environment variable
     - Role: `ADMIN`
     - Privileged console: System statistics, registered user list, and complete security audit trail.
 
@@ -49,8 +49,8 @@ The application enforces defense-in-depth:
 | `RATE_LIMIT_MAX` | Max requests per IP per window | `100` | Yes |
 | `LOGIN_RATE_LIMIT_WINDOW_MS` | Login rate limiter time window | `900000` (15 min) | Yes |
 | `LOGIN_RATE_LIMIT_MAX` | Max login attempts per IP per window | `5` | Yes |
-| `DEMO_USER_PASSWORD` | Password for demo user account seed | `<strong-demo-password>` (dev: `Demo@1234`) | No (dev fallback only) |
-| `ADMIN_PASSWORD` | Password for admin user account seed | `<strong-admin-password>` (dev: `Admin@1234`) | No (dev fallback only) |
+| `DEMO_USER_PASSWORD` | Password for demo user account seed | `<strong-demo-password>` | Required for dev seeding |
+| `ADMIN_PASSWORD` | Password for admin user account seed | `<strong-admin-password>` | Required for dev seeding |
 
 ### Frontend Configuration (`src/frontend/.env`)
 

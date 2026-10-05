@@ -96,7 +96,7 @@ export const AuthModal = ({ isOpen, onClose, onAuthSuccess, initialMode = 'login
     setFormData({
       name: '',
       email: 'demo@fintrack.local',
-      password: 'Demo@1234',
+      password: '',
       confirmPassword: '',
     });
     setErrors({});

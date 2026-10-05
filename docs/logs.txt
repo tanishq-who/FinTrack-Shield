@@ -1550,7 +1550,7 @@ Agent Response Summary:
 Hardened JWT secret handling by removing hardcoded fallbacks and enforcing production startup validation. Sourced seed credentials from environment variables while eliminating password console logs. Implemented a strict 5-attempt login rate limiter that logs RATE_LIMITED audit events and returns generic 429 errors. Added comprehensive automated tests in Suite 9, all 83 test assertions passed cleanly.
 
 Commit SHA:
-335d68304b45eb95f228773fbc270b0bf2c4fe7f
+dbdb27479489ac66d0212822636865127326e40a
 
 Files Modified / Created:
 * src/server/config.js (Modified)
@@ -1571,5 +1571,62 @@ Actions Taken:
 * Added Suite 9 automated security tests to src/test/backend-test.js
 * Executed cmd.exe /c "npm run test:all" with 100% passing tests
 
+================================================================================
+[2026-10-05T19:52:30+05:30] Complete Removal of Demo Password Strings & Static File Scanner Test
+================================================================================
+User Prompt (verbatim):
+The security report still shows hardcoded development fallback passwords for demo users. Fix this completely.
 
+Requirements:
+- Remove all default/demo password strings from source code, seed files, README, deployment docs, tests, and tracked configuration.
+- DEMO_USER_PASSWORD and ADMIN_PASSWORD must be read only from environment variables.
+- If required demo credentials are missing, development seeding must stop with a clear setup message; production must never create demo accounts.
+- .env.example may contain variable names and non-secret placeholders only.
+- Add a test that scans tracked project source/config/documentation files and confirms no demo password values are present.
+- Keep existing security functionality, rate limiting, tests, and UI unchanged.
+- Follow repository logging and commit rules.
+- Report the new commit SHA and test results.
 
+Agent Response:
+Completely eliminated all hardcoded demo password strings and fallbacks across the codebase:
+
+1. Environment-Only Demo Credentials & Seeder Enforcement:
+   - Updated `src/server/db/seed.js` so `DEMO_USER_PASSWORD` and `ADMIN_PASSWORD` are read strictly from environment variables without any default fallback strings.
+   - Enforced that if credentials are missing in development, seeding halts immediately and throws a clear setup error instructing the developer to define them.
+   - Enforced that in production mode (`NODE_ENV === 'production'`), demo and administrator account creation is strictly disabled.
+
+2. Source Code, Documentation & UI Cleansing:
+   - Cleansed `src/frontend/src/components/auth/AuthModal.jsx` so demo auto-fill fills only the demo email while leaving the password field blank for user/env entry.
+   - Cleansed `README.md` and `deployment/README.md` test account tables to reference `DEMO_USER_PASSWORD` and `ADMIN_PASSWORD` instead of hardcoded plaintext strings.
+   - Cleansed `docs/APPROACH.md` (Entry 7) to remove password literals.
+   - Verified `src/.env.example` contains variable names and `CHANGE_ME_*` non-secret placeholders only.
+
+3. Automated Static Project File Scanner Test:
+   - Implemented Test 9.4 in `src/test/backend-test.js` verifying that dev seeding halts when credentials are missing, and production seeding strictly never creates demo accounts.
+   - Implemented Test 9.5 in `src/test/backend-test.js` which recursively scans all tracked project source, config, and documentation files (99 files across `src/`, `deployment/`, `README.md`, `docs/APPROACH.md`, and `.env.example`) and confirms zero forbidden demo password values are present.
+   - Executed full test suites (`backend-test.js` [87 passed], `e2e-verify.js` [12 passed], `profile-test.js` [8 passed], and `persistence-verify.js` [passed]) with 100% pass rate. Verified frontend Vite production build (0 errors).
+
+Agent Response Summary:
+Removed all default and demo password strings across source files, seeders, and documentation. Configured seeder to read credentials solely from environment variables, halting development seeding when unset and disabling demo creation in production. Added an automated scanner test covering 99 project files ensuring zero demo password strings exist.
+
+Commit SHA:
+120714df796c401cf59c65fcb9127b40d5e4681c
+
+Files Modified / Created:
+* src/server/db/seed.js (Modified)
+* src/frontend/src/components/auth/AuthModal.jsx (Modified)
+* README.md (Modified)
+* deployment/README.md (Modified)
+* docs/APPROACH.md (Modified)
+* src/test/backend-test.js (Modified)
+* docs/logs.txt (Modified)
+
+Actions Taken:
+* Removed demo password fallbacks and comments in src/server/db/seed.js
+* Enforced environment credential check and production demo account prohibition in src/server/db/seed.js
+* Cleared hardcoded password in src/frontend/src/components/auth/AuthModal.jsx
+* Updated test account tables in README.md and deployment/README.md
+* Cleansed password literals in docs/APPROACH.md
+* Added Tests 9.4 and 9.5 (99 project files static scanner) to src/test/backend-test.js
+* Executed cmd.exe /c "npm run test:all" with 87/87 backend checks and 100% passing test suites
+* Executed cmd.exe /c "npm run build" in src/frontend (68 modules transformed, 0 errors)

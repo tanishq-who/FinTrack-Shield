@@ -445,6 +445,74 @@ async function runTests() {
   assert(passwordFoundInAudit === false, 'Zero plaintext passwords leaked in audit log metadata');
   assert(secretFoundInAudit === false, 'Zero JWT secrets leaked in audit log metadata');
 
+  // Test 9.4: Database seeder enforces environment-only credentials & production safety
+  const { seed: seedDb } = require('../server/db/seed');
+
+  // Dev mode without credentials must stop with clear setup message
+  let devSeedFailedWithoutCreds = false;
+  try {
+    await seedDb({ nodeEnv: 'development', demoPassword: '', adminPassword: '', autoClose: false });
+  } catch (err) {
+    devSeedFailedWithoutCreds = err.message.includes('Missing required environment variable');
+  }
+  assert(devSeedFailedWithoutCreds, 'Development seeding halts with setup message when credentials missing');
+
+  // Production mode must never create demo accounts
+  db.prepare("DELETE FROM users WHERE email IN ('demo@fintrack.local', 'admin@fintrack.local')").run();
+  await seedDb({ nodeEnv: 'production', demoPassword: 'SomePassword123!', adminPassword: 'SomePassword123!', autoClose: false });
+  const prodDemoCheck = db.prepare("SELECT * FROM users WHERE email = 'demo@fintrack.local'").get();
+  const prodAdminCheck = db.prepare("SELECT * FROM users WHERE email = 'admin@fintrack.local'").get();
+  assert(!prodDemoCheck, 'Production seeding strictly NEVER creates demo user account');
+  assert(!prodAdminCheck, 'Production seeding strictly NEVER creates admin user account');
+
+  // Test 9.5: Scan tracked project source, config, and documentation files for demo password values
+  const forbiddenPatterns = [
+    ['Demo', '@', '1234'].join(''),
+    ['Admin', '@', '1234'].join(''),
+  ];
+
+  const projectRoot = path.resolve(__dirname, '..', '..');
+  const filesToScan = [];
+
+  function collectFiles(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === '.git' || entry.name === 'data') {
+          continue;
+        }
+        collectFiles(fullPath);
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (['.js', '.jsx', '.json', '.md', '.sql', '.html', '.css', '.yaml', '.yml', '.example'].includes(ext) || entry.name.startsWith('.env.')) {
+          filesToScan.push(fullPath);
+        }
+      }
+    }
+  }
+
+  collectFiles(path.join(projectRoot, 'src'));
+  collectFiles(path.join(projectRoot, 'deployment'));
+  const rootReadme = path.join(projectRoot, 'README.md');
+  if (fs.existsSync(rootReadme)) filesToScan.push(rootReadme);
+  const approachDoc = path.join(projectRoot, 'docs', 'APPROACH.md');
+  if (fs.existsSync(approachDoc)) filesToScan.push(approachDoc);
+
+  let leaksFound = [];
+  for (const filePath of filesToScan) {
+    if (filePath.endsWith('backend-test.js')) continue;
+
+    const content = fs.readFileSync(filePath, 'utf-8');
+    for (const pattern of forbiddenPatterns) {
+      if (content.includes(pattern)) {
+        leaksFound.push({ file: path.relative(projectRoot, filePath), pattern });
+      }
+    }
+  }
+
+  assert(leaksFound.length === 0, `Scanned ${filesToScan.length} project source/config/doc files: zero demo password values found`);
+
   closeDb();
   if (fs.existsSync(testDbPath)) {
     fs.unlinkSync(testDbPath);
