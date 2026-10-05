@@ -9,6 +9,6 @@ submission:
   project_name: "FinTrack Shield"
   repository: "https://github.com/tanishq-who/FinTrack-Shield.git"
   commit_sha: "91c060843db07146238c6209a58f5fc3a1c29c4b"
-  deployment_url: "https://<your-subdomain>.vercel.app"  # Placeholder: Update with your Vercel deployment URL
-  health_url: "https://<your-backend-service>.up.railway.app/api/health"  # Placeholder: Update with your Railway/Render /api/health URL
+  deployment_url: "https://fin-track-shield.vercel.app"
+  health_url: "https://fintrack-shield-production.up.railway.app/api/health"
   submitted_at: "2026-10-05T15:50:00+05:30"

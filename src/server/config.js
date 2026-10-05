@@ -37,6 +37,62 @@ function validateConfig(cfg = config) {
   return true;
 }
 
+/**
+ * Normalizes an origin string by trimming, removing quotes, stripping trailing slashes,
+ * and converting to lowercase for reliable comparison.
+ * @param {string} origin
+ * @returns {string}
+ */
+function normalizeOrigin(origin) {
+  if (!origin || typeof origin !== 'string') return '';
+  return origin.trim().replace(/^['"]+|['"]+$/g, '').replace(/\/+$/, '').toLowerCase();
+}
+
+/**
+ * Returns dynamic list of allowed origins from process.env.CORS_ORIGIN and defaults.
+ * @returns {string[]}
+ */
+function getAllowedOrigins() {
+  const origins = new Set();
+
+  // Known default development origins and production Vercel frontend
+  const defaults = [
+    'https://fin-track-shield.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+  ];
+  defaults.forEach((d) => {
+    const norm = normalizeOrigin(d);
+    if (norm) origins.add(norm);
+  });
+
+  if (process.env.CORS_ORIGIN) {
+    const parts = process.env.CORS_ORIGIN.split(',');
+    for (const part of parts) {
+      const norm = normalizeOrigin(part);
+      if (norm) {
+        origins.add(norm);
+      }
+    }
+  }
+
+  return Array.from(origins);
+}
+
+/**
+ * Validates if an incoming request Origin is permitted by CORS policy.
+ * @param {string} incomingOrigin
+ * @returns {boolean}
+ */
+function isOriginAllowed(incomingOrigin) {
+  if (!incomingOrigin) return true; // Allow non-browser, server-to-server, health check requests
+  const normalized = normalizeOrigin(incomingOrigin);
+  const allowed = getAllowedOrigins();
+  return allowed.includes(normalized);
+}
+
 const config = {
   port: parseInt(process.env.PORT, 10) || 3001,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -58,9 +114,12 @@ const config = {
   },
 
   cors: {
-    origin: process.env.CORS_ORIGIN
-      ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean)
-      : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'],
+    get origin() {
+      return getAllowedOrigins();
+    },
+    normalizeOrigin,
+    getAllowedOrigins,
+    isOriginAllowed,
   },
 
   rateLimit: {

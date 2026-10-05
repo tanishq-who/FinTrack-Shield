@@ -40,13 +40,30 @@ app.set('trust proxy', 1);
 // Helmet: secure HTTP headers (X-Content-Type-Options, X-Frame-Options, etc.)
 app.use(helmet());
 
-// CORS: restrict to allowed origins
-app.use(cors({
-  origin: config.cors.origin,
+// CORS: dynamic origin validation supporting CORS_ORIGIN env var and production Vercel frontend
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, server-to-server, health check probes)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (config.cors.isOriginAllowed(origin)) {
+      // Reflect exact incoming origin to satisfy Access-Control-Allow-Origin with credentials
+      return callback(null, origin);
+    }
+
+    // Origin not allowed by CORS policy
+    return callback(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Rate limiter: prevent brute-force and abuse
 const limiter = rateLimit({

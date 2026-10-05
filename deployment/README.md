@@ -60,7 +60,7 @@ Configure these in the Railway or Render dashboard under **Variables / Environme
 | `DB_PATH` | Path to persistent SQLite database on volume mount | `/data/fintrack.db` | **Yes** |
 | `JWT_SECRET` | Cryptographically secure token signing key (min 32 chars) | `<generate-using-openssl-rand-hex-32>` | **Yes** (Startup fails if missing/weak) |
 | `JWT_EXPIRES_IN` | Token expiration time | `8h` | Optional (default: `8h`) |
-| `CORS_ORIGIN` | Comma-separated allowed frontend origins | `https://<your-subdomain>.vercel.app` | **Yes** |
+| `CORS_ORIGIN` | Comma-separated allowed frontend origins | `https://fin-track-shield.vercel.app` | **Yes** |
 | `RATE_LIMIT_WINDOW_MS` | General API rate limiter window (milliseconds) | `900000` (15 minutes) | Optional (default: 15m) |
 | `RATE_LIMIT_MAX` | Max general API requests per IP per window | `100` | Optional (default: 100) |
 | `LOGIN_RATE_LIMIT_WINDOW_MS` | Login rate limiter window (milliseconds) | `900000` (15 minutes) | Optional (default: 15m) |
@@ -79,7 +79,7 @@ Configure this in the Vercel dashboard under **Project Settings → Environment 
 
 | Variable Name | Description | Example Production Value | Required? |
 |---|---|---|---|
-| `VITE_API_URL` | Base URL of deployed backend REST API including `/api` | `https://<your-backend-service>.up.railway.app/api` | **Yes** |
+| `VITE_API_URL` | Base URL of deployed backend REST API including `/api` | `https://fintrack-shield-production.up.railway.app/api` | **Yes** |
 
 > ⚠️ **Build-Time Variable**: In Vite, `VITE_*` variables are embedded into static assets at build time. When you change `VITE_API_URL`, you must trigger a redeploy on Vercel for the change to take effect.
 
@@ -117,7 +117,7 @@ Choose either **Option A (Railway)** or **Option B (Render)**.
      PORT=3001
      DB_PATH=/data/fintrack.db
      JWT_SECRET=<32+ random characters generated via openssl rand -hex 32>
-     CORS_ORIGIN=https://<your-subdomain>.vercel.app
+     CORS_ORIGIN=https://fin-track-shield.vercel.app
      ```
      *(If you haven't deployed the frontend yet, set `CORS_ORIGIN=http://localhost:3000` temporarily, then update it once Vercel gives you your frontend URL).*
 
@@ -216,7 +216,7 @@ Choose either **Option A (Railway)** or **Option B (Render)**.
    - Return to Railway or Render.
    - Update `CORS_ORIGIN` to your exact Vercel URL:
      ```env
-     CORS_ORIGIN=https://<your-project-name>.vercel.app
+     CORS_ORIGIN=https://fin-track-shield.vercel.app
      ```
    - Redeploy or restart the backend service to apply the origin change.
 
@@ -271,7 +271,7 @@ submission:
   project_name: "FinTrack Shield"
   repository: "https://github.com/tanishq-who/FinTrack-Shield.git"
   commit_sha: "<frozen-commit-sha>"
-  deployment_url: "https://<your-subdomain>.vercel.app"
-  health_url: "https://<your-backend-subdomain>.up.railway.app/api/health"
+  deployment_url: "https://fin-track-shield.vercel.app"
+  health_url: "https://fintrack-shield-production.up.railway.app/api/health"
   submitted_at: "2026-10-06T10:00:00+05:30"
 ```

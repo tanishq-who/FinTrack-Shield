@@ -12,6 +12,7 @@
  * 8. Budget CRUD, calculations (spent, remaining, percentage, isOverspent), and IDOR prevention
  * 9. Dashboard API summary calculations (balance, monthly income/expense, savings rate, breakdown)
  * 10. Audit logging verification across all operations
+ * 11. Production CORS configuration verification (Vercel origin, credentials, preflight OPTIONS)
  */
 
 process.env.NODE_ENV = 'test';
@@ -634,6 +635,50 @@ async function runTests() {
   const analysisJsonStr = JSON.stringify(adminAnalysisData);
   assert(!analysisJsonStr.includes('password_hash'), 'Zero password_hash exposed in security analysis output');
   assert(!analysisJsonStr.includes('SecOpsSuperAdmin'), 'Zero plaintext passwords exposed in security analysis output');
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Suite 11: Production CORS Configuration Verification
+  // ──────────────────────────────────────────────────────────────────────────
+  console.log('\n--- Suite 11: Production CORS Configuration Verification ---');
+  const vercelOrigin = 'https://fin-track-shield.vercel.app';
+
+  // Test 11.1: OPTIONS preflight from Vercel frontend returns HTTP 204 with CORS headers
+  const preflightRes = await fetch(`http://127.0.0.1:${suite10Port}/api/transactions`, {
+    method: 'OPTIONS',
+    headers: {
+      Origin: vercelOrigin,
+      'Access-Control-Request-Method': 'POST',
+      'Access-Control-Request-Headers': 'Content-Type,Authorization',
+    },
+  });
+  assert(preflightRes.status === 204, 'CORS OPTIONS preflight returns HTTP 204 No Content');
+  assert(preflightRes.headers.get('access-control-allow-origin') === vercelOrigin, 'CORS preflight returns Access-Control-Allow-Origin: https://fin-track-shield.vercel.app');
+  assert(preflightRes.headers.get('access-control-allow-credentials') === 'true', 'CORS preflight returns Access-Control-Allow-Credentials: true');
+  assert(preflightRes.headers.get('access-control-allow-methods').includes('POST'), 'CORS preflight returns Access-Control-Allow-Methods containing POST');
+  assert(preflightRes.headers.get('access-control-allow-headers').toLowerCase().includes('authorization'), 'CORS preflight returns Access-Control-Allow-Headers containing Authorization');
+
+  // Test 11.2: Actual GET request from Vercel frontend returns Access-Control-Allow-Origin
+  const getCorsRes = await fetch(`http://127.0.0.1:${suite10Port}/api/health`, {
+    headers: { Origin: vercelOrigin },
+  });
+  assert(getCorsRes.status === 200, 'GET /api/health with Vercel Origin returns HTTP 200');
+  assert(getCorsRes.headers.get('access-control-allow-origin') === vercelOrigin, 'Actual GET returns Access-Control-Allow-Origin: https://fin-track-shield.vercel.app');
+  assert(getCorsRes.headers.get('access-control-allow-credentials') === 'true', 'Actual GET returns Access-Control-Allow-Credentials: true');
+  assert(getCorsRes.headers.get('access-control-allow-origin') !== '*', 'Security check: Access-Control-Allow-Origin is never wildcard * with credentials');
+
+  // Test 11.3: Dynamic CORS_ORIGIN environment variable handling (quotes, slashes, comma-separated)
+  process.env.CORS_ORIGIN = '"https://fin-track-shield.vercel.app/", https://custom-preview.vercel.app';
+  const previewCorsRes = await fetch(`http://127.0.0.1:${suite10Port}/api/health`, {
+    headers: { Origin: 'https://custom-preview.vercel.app' },
+  });
+  assert(previewCorsRes.headers.get('access-control-allow-origin') === 'https://custom-preview.vercel.app', 'Secondary origin in CORS_ORIGIN is dynamically permitted');
+
+  // Test 11.4: Disallowed origin does NOT receive Access-Control-Allow-Origin header
+  const evilCorsRes = await fetch(`http://127.0.0.1:${suite10Port}/api/health`, {
+    headers: { Origin: 'https://unauthorized-attacker.evil.com' },
+  });
+  assert(evilCorsRes.headers.get('access-control-allow-origin') === null, 'Unauthorized origin does not receive Access-Control-Allow-Origin header');
+  assert(evilCorsRes.headers.get('access-control-allow-credentials') === null, 'Unauthorized origin does not receive Access-Control-Allow-Credentials header');
 
   await new Promise((resolve) => suite10Server.close(resolve));
 

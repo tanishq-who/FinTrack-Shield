@@ -252,12 +252,35 @@ src/
   5. *Health Check (`GET /api/health`):* Confirmed live health check endpoint returning HTTP 200 with service status, uptime, and SQLite database connectivity status.
   6. *Documentation & Submission:* Authored complete step-by-step manual deployment instructions in `deployment/README.md` for Railway, Render, and Vercel, and configured URL placeholders in `metadata/submission.yaml`.
 
+### [2026-10-05 22:25 IST] Entry 12: Production CORS Preflight & Live Vercel Origin Fix
+- **Focus:** Resolving cross-origin resource sharing (CORS) preflight rejection on the live Railway backend (`https://fintrack-shield-production.up.railway.app`) when called from the production Vercel frontend (`https://fin-track-shield.vercel.app`).
+- **Root Cause Analysis:**
+  1. Express CORS middleware was previously configured with a static array initialized at module load time. If `process.env.CORS_ORIGIN` contained quotes, whitespace, or trailing slashes (common when pasting URLs into deployment dashboards like Railway), the strict string equality check in the `cors` package evaluated to `false`.
+  2. When an incoming origin failed matching in `cors`, the preflight OPTIONS handler responded with HTTP 204 and set `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers`, but omitted `Access-Control-Allow-Origin`, causing browser preflight failures.
+- **Resolution:**
+  1. Updated `src/server/config.js` with `normalizeOrigin()`, `getAllowedOrigins()`, and `isOriginAllowed()`. Cleaned origins by stripping leading/trailing quotes, trimming whitespace, and stripping trailing slashes.
+  2. Implemented dynamic `cors.origin` getter and dynamic origin resolver function in `corsOptions`:
+     ```javascript
+     origin: (origin, callback) => {
+       if (!origin) return callback(null, true);
+       if (config.cors.isOriginAllowed(origin)) return callback(null, origin);
+       return callback(null, false);
+     }
+     ```
+  3. Set `credentials: true` reflecting the exact valid requesting origin without using insecure wildcard `*`.
+  4. Added explicit `app.options('*', cors(corsOptions))` preflight handler across all routes.
+  5. Created dedicated `src/test/cors-test.js` (17/17 passing) and integrated Suite 11 into `src/test/backend-test.js` (128/128 passing).
+  6. Updated `metadata/submission.yaml` and `deployment/README.md` with live production URLs:
+     - Frontend: `https://fin-track-shield.vercel.app`
+     - Backend: `https://fintrack-shield-production.up.railway.app`
+
 ---
 
 ## 6. Testing, Security Verification & Deployment Record
 
 ### 6.1 Testing & Security Verification Strategy
-- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, password verification, audit logging, category/transaction/budget models, integer paise math, complete IDOR isolation, PS-01 profile management, security hardening, rate limiting, and real-data Security Analysis Dashboard (116/116 automated tests passing).
+- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, password verification, audit logging, category/transaction/budget models, integer paise math, complete IDOR isolation, PS-01 profile management, security hardening, rate limiting, real-data Security Analysis Dashboard, and production CORS verification (128/128 automated tests passing).
+- **Dedicated Production CORS Test Suite:** `src/test/cors-test.js` verifying OPTIONS preflight, credentialed GET/POST, trailing slash resilience, comma-separated origins, and unauthorized origin rejection (17/17 passing).
 - **Comprehensive 7-Dimension Security Verification Suite:** `src/test/security-final-verify.js` executing live HTTP requests verifying IDOR, SQLi prevention, XSS safety, login rate limiting, export scoping, RBAC, and security dashboard provenance (61/61 assertions passing).
 - **Dedicated Profile Management Test Suite:** `src/test/profile-test.js` verifying safe profile viewing, name/email updates, duplicate email conflict detection, user-ownership isolation, refreshed JWT generation, and audit logging (8/8 passing).
 - **End-to-End Verification Suite:** Dedicated `src/test/e2e-verify.js` testing 12 core functional & security criteria (12/12 passing).
@@ -265,11 +288,13 @@ src/
 - **Static Analysis & Build Verification:** Frontend production build (`cmd.exe /c "npm run build"`) compiles 68 modules with 0 errors.
 
 ### 6.2 Deployment Verification
-- **Production Deployment Target:** Vercel (Frontend static SPA) + Railway / Render (Backend Express REST API)
+- **Live Frontend URL:** `https://fin-track-shield.vercel.app` (Vercel static SPA deployment)
+- **Live Backend API URL:** `https://fintrack-shield-production.up.railway.app` (Railway Node.js service)
+- **Health Check Endpoint:** `https://fintrack-shield-production.up.railway.app/api/health` (HTTP 200, checks DB connection)
 - **Database Engine:** Node 24 native `node:sqlite` (DatabaseSync) on persistent platform volume (`/data/fintrack.db` via `DB_PATH`)
-- **Health Check Endpoint:** `GET /api/health` (HTTP 200, checks DB connection)
 - **Deployment Guide:** Complete step-by-step instructions in `deployment/README.md`
-- **Submission Metadata:** Recorded with placeholders in `metadata/submission.yaml`
+- **Submission Metadata:** Recorded in `metadata/submission.yaml`
+
 
 
 

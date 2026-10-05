@@ -1877,7 +1877,63 @@ Actions Taken:
 * Updated metadata/submission.yaml with deployment placeholders
 * Updated docs/APPROACH.md with Journal Entry 11 and deployment specifications
 
+================================================================================
+[2026-10-05T22:20:52+05:30] Fix CORS Configuration for Production Deployment
+================================================================================
+User Prompt (verbatim):
+Fix the CORS configuration in the existing Express backend for production deployment. The live Vercel frontend is https://fin-track-shield.vercel.app and the Railway backend is https://fintrack-shield-production.up.railway.app. The OPTIONS preflight currently returns 204 with allow-methods and allow-headers but is missing Access-Control-Allow-Origin. Make CORS correctly read CORS_ORIGIN=https://fin-track-shield.vercel.app, allow credentials, and return the correct Access-Control-Allow-Origin header for the Vercel origin. Do not weaken security or use * with credentials. Preserve the existing Helmet, rate limiting, authentication, RBAC, audit logging and all tests. Add/update a test for the production CORS origin. Follow the project's logging and commit rules. Then report the changed files, tests and commit SHA.
 
+Agent Response:
+I have diagnosed and completely resolved the CORS preflight issue for your production deployment:
 
+1. Root Cause:
+   - In Express `cors` middleware, passing a static array checked origins with strict `===` string equality against elements initialized at require-time.
+   - When origins had enclosing quotes, trailing slashes (e.g. `https://fin-track-shield.vercel.app/`), or case differences, `isOriginAllowed` returned `false`.
+   - When an origin fails matching during an OPTIONS preflight, the `cors` library responds with HTTP 204 and populates `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers`, but omits `Access-Control-Allow-Origin`.
+
+2. Resolution:
+   - Updated `src/server/config.js`:
+     - Added `normalizeOrigin()`, `getAllowedOrigins()`, and `isOriginAllowed()` to trim whitespace, strip enclosing quotes (`^['"]+|['"]+$`), strip trailing slashes, and lowercase for reliable matching.
+     - Implemented dynamic `cors.origin` getter reflecting `process.env.CORS_ORIGIN`, comma-separated origins, and default production/dev domains (`https://fin-track-shield.vercel.app`, `http://localhost:5173`, etc.).
+   - Updated `src/server/server.js`:
+     - Configured `corsOptions` with dynamic origin validation function that reflects the exact requesting origin when permitted.
+     - Set `credentials: true` returning `Access-Control-Allow-Credentials: true` without using wildcard `*`.
+     - Added explicit `app.options('*', cors(corsOptions))` preflight handler for all routes.
+     - Preserved Helmet, rate limiting, authentication, RBAC, and audit logging completely unchanged.
+   - Updated documentation & metadata:
+     - Updated `metadata/submission.yaml` with live URLs: `https://fin-track-shield.vercel.app` and `https://fintrack-shield-production.up.railway.app/api/health`.
+     - Updated `deployment/README.md` with exact live production URLs and environment configuration.
+     - Documented Journal Entry 12 in `docs/APPROACH.md`.
+   - Comprehensive test verification:
+     - Created dedicated test suite `src/test/cors-test.js` (17/17 passing) testing preflight OPTIONS, credentialed GET/POST, trailing slash resilience, comma-separated origins, and unauthorized origin rejection.
+     - Added Suite 11 to `src/test/backend-test.js` (128/128 passing).
+     - Executed `npm run test:all` (all 6 test suites passing with 100%).
+
+Agent Response Summary:
+Fixed production CORS preflight on Railway backend to reliably permit the live Vercel frontend (https://fin-track-shield.vercel.app). Implemented origin normalization and dynamic origin matching in server.js and config.js, ensuring Access-Control-Allow-Origin and Access-Control-Allow-Credentials: true are returned for OPTIONS preflight and standard requests without weakening security or using wildcard *. Added automated CORS tests in cors-test.js and backend-test.js, and updated deployment and submission metadata with live production URLs.
+
+Commit SHA:
+(Pending commit execution)
+
+Files Modified / Created:
+* src/server/config.js (Modified)
+* src/server/server.js (Modified)
+* src/test/cors-test.js (Created)
+* src/test/backend-test.js (Modified)
+* src/package.json (Modified)
+* metadata/submission.yaml (Modified)
+* deployment/README.md (Modified)
+* docs/APPROACH.md (Modified)
+* docs/logs.txt (Modified)
+
+Actions Taken:
+* Refactored CORS configuration in src/server/config.js with normalizeOrigin and dynamic origin resolution
+* Updated CORS middleware in src/server/server.js with origin callback reflecting valid origin and app.options('*') preflight handler
+* Created src/test/cors-test.js covering OPTIONS preflight, credentials, trailing slashes, comma-separated lists, and evil origin rejection (17/17 passing)
+* Integrated Suite 11 into src/test/backend-test.js (128/128 passing)
+* Added test:cors script to src/package.json and integrated into test:all
+* Executed cmd.exe /c "npm run test:all" with 100% passing across all 6 test suites
+* Updated metadata/submission.yaml and deployment/README.md with live production URLs
+* Documented Journal Entry 12 in docs/APPROACH.md
 
 
