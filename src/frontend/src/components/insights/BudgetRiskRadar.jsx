@@ -6,6 +6,7 @@ export const BudgetRiskRadar = ({ risks }) => {
 
   const { safeCategories = [], warningCategories = [], overspentCategories = [], explainer } = risks;
 
+  const totalBudgets = safeCategories.length + warningCategories.length + overspentCategories.length;
   const hasRisks = overspentCategories.length > 0 || warningCategories.length > 0;
 
   return (
@@ -13,8 +14,8 @@ export const BudgetRiskRadar = ({ risks }) => {
       title="Budget Threshold Risk Radar"
       subtitle="Early-warning indicators for current billing cycle"
       iconTheme={hasRisks ? 'danger' : 'emerald'}
-      badgeText={hasRisks ? 'Attention Required' : 'All Clear'}
-      badgeVariant={hasRisks ? 'expense' : 'income'}
+      badgeText={totalBudgets === 0 ? 'No Budgets' : (hasRisks ? 'Attention Required' : 'All Clear')}
+      badgeVariant={totalBudgets === 0 ? 'category' : (hasRisks ? 'expense' : 'income')}
       icon={
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -25,6 +26,12 @@ export const BudgetRiskRadar = ({ risks }) => {
       explainer={explainer}
     >
       <div className="risk-radar-container">
+        {totalBudgets === 0 ? (
+          <p className="empty-sub-text" style={{ padding: '16px 0', color: 'var(--color-text-dark-muted)', fontSize: '0.875rem' }}>
+            No active budgets configured for this month. Set budget limits to monitor risk indicators.
+          </p>
+        ) : null}
+
         {/* 1. Over Budget Group */}
         {overspentCategories.length > 0 && (
           <div className="risk-group group-overspent">
@@ -38,7 +45,7 @@ export const BudgetRiskRadar = ({ risks }) => {
                   <div className="risk-item-top">
                     <span className="risk-cat-name">{cat.name}</span>
                     <span className="risk-cat-val tabular-nums" style={{ color: 'var(--color-danger)' }}>
-                      ${cat.spent} / ${cat.limit} ({cat.percent}%)
+                      ${Number(cat.spent || 0).toFixed(2)} / ${Number(cat.limit || 0).toFixed(2)} ({Number(cat.percent || 0)}%)
                     </span>
                   </div>
                   <div className="budget-progress-track">
@@ -66,13 +73,13 @@ export const BudgetRiskRadar = ({ risks }) => {
                   <div className="risk-item-top">
                     <span className="risk-cat-name">{cat.name}</span>
                     <span className="risk-cat-val tabular-nums" style={{ color: 'var(--color-warning)' }}>
-                      ${cat.spent} / ${cat.limit} ({cat.percent}%)
+                      ${Number(cat.spent || 0).toFixed(2)} / ${Number(cat.limit || 0).toFixed(2)} ({Number(cat.percent || 0)}%)
                     </span>
                   </div>
                   <div className="budget-progress-track">
                     <div
                       className="budget-progress-fill"
-                      style={{ width: `${cat.percent}%`, backgroundColor: 'var(--color-warning)' }}
+                      style={{ width: `${Math.min(100, Math.max(0, Number(cat.percent || 0)))}%`, backgroundColor: 'var(--color-warning)' }}
                     ></div>
                   </div>
                 </div>
@@ -94,13 +101,13 @@ export const BudgetRiskRadar = ({ risks }) => {
                   <div className="risk-item-top">
                     <span className="risk-cat-name">{cat.name}</span>
                     <span className="risk-cat-val tabular-nums" style={{ color: 'var(--color-emerald-600)' }}>
-                      ${cat.spent} / ${cat.limit} ({cat.percent}%)
+                      ${Number(cat.spent || 0).toFixed(2)} / ${Number(cat.limit || 0).toFixed(2)} ({Number(cat.percent || 0)}%)
                     </span>
                   </div>
                   <div className="budget-progress-track">
                     <div
                       className="budget-progress-fill"
-                      style={{ width: `${cat.percent}%`, backgroundColor: 'var(--color-emerald-500)' }}
+                      style={{ width: `${Math.min(100, Math.max(0, Number(cat.percent || 0)))}%`, backgroundColor: 'var(--color-emerald-500)' }}
                     ></div>
                   </div>
                 </div>

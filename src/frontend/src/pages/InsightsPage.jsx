@@ -93,7 +93,7 @@ export const InsightsPage = ({ simulatedState = 'loaded', onNavigate }) => {
             Retry Analysis
           </button>
         </div>
-      ) : simulatedState === 'empty' || (!analysis && suggestions.length === 0) ? (
+      ) : simulatedState === 'empty' || !analysis?.hasTransactions ? (
         <div className="surface-card state-container" role="status">
           <div className="state-icon-box state-empty-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -103,7 +103,7 @@ export const InsightsPage = ({ simulatedState = 'loaded', onNavigate }) => {
           </div>
           <h3 className="state-title">No Insights Available Yet</h3>
           <p className="state-description">
-            We need at least 5 ledger transactions and one budget allocation to generate spending velocity trends and recommendations.
+            We need recorded ledger transactions and budget allocations to generate spending velocity trends and recommendations.
           </p>
           {onNavigate && (
             <button className="state-action-btn" onClick={() => onNavigate('transactions')}>

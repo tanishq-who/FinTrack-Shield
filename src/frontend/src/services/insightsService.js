@@ -15,13 +15,22 @@ export const insightsService = {
     const history = summary.monthlyComparison || [];
     const categories = summary.categorySpending || [];
 
-    const currentSpending = apiClient.fromPaise(summary.expensesThisMonth || 0);
+    const hasTransactions = Boolean(
+      (summary.recentTransactions && summary.recentTransactions.length > 0) ||
+      (summary.allTimeExpense > 0 || summary.allTimeIncome > 0) ||
+      (summary.expensesThisMonth > 0 || summary.incomeThisMonth > 0)
+    );
+
+    const currentSpending = apiClient.fromPaise(
+      summary.expensesThisMonth ?? (history[history.length - 1]?.expense || 0)
+    );
     let previousSpending = 0;
     let difference = 0;
     let percentageChange = 0;
 
     if (history.length >= 2) {
-      previousSpending = apiClient.fromPaise(history[history.length - 2].total_expense || 0);
+      const prevRecord = history[history.length - 2];
+      previousSpending = apiClient.fromPaise(prevRecord.expense ?? prevRecord.total_expense ?? 0);
       difference = currentSpending - previousSpending;
       if (previousSpending > 0) {
         percentageChange = Math.round(((currentSpending - previousSpending) / previousSpending) * 1000) / 10;
@@ -31,9 +40,9 @@ export const insightsService = {
     const topCategory = categories[0]
       ? {
           name: categories[0].name,
-          amount: apiClient.fromPaise(categories[0].totalSpent),
-          percentage: categories[0].percentage,
-          note: `Largest monthly outflow category (${categories[0].percentage}% of total spending)`,
+          amount: apiClient.fromPaise(categories[0].totalSpent || 0),
+          percentage: categories[0].percentage || 0,
+          note: `Largest monthly outflow category (${categories[0].percentage || 0}% of total spending)`,
         }
       : {
           name: 'None',
@@ -45,8 +54,8 @@ export const insightsService = {
     const secondCategory = categories[1]
       ? {
           name: categories[1].name,
-          amount: apiClient.fromPaise(categories[1].totalSpent),
-          percentage: categories[1].percentage,
+          amount: apiClient.fromPaise(categories[1].totalSpent || 0),
+          percentage: categories[1].percentage || 0,
           note: 'Secondary spending category',
         }
       : null;
@@ -54,6 +63,7 @@ export const insightsService = {
     const currentMonthLabel = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
     return {
+      hasTransactions,
       currentMonth: currentMonthLabel,
       currentSpending,
       previousMonth: 'Prior Month',
@@ -63,7 +73,7 @@ export const insightsService = {
       topCategory,
       secondCategory,
       explainer: {
-        dataSource: `Aggregated live from your verified ledger transactions for ${summary.period}.`,
+        dataSource: `Aggregated live from your verified ledger transactions for ${summary.period || 'current period'}.`,
         reason: 'Evaluating month-over-month burn rate provides early detection of spending velocity changes.',
       },
     };
@@ -83,15 +93,15 @@ export const insightsService = {
     budgets.forEach((b) => {
       const item = {
         name: b.categoryName || 'General',
-        limit: apiClient.fromPaise(b.limitAmount),
-        spent: apiClient.fromPaise(b.spentAmount),
-        percent: b.percentageUsed,
-        overspentBy: b.isOverspent ? apiClient.fromPaise(Math.abs(b.remainingAmount)) : 0,
+        limit: apiClient.fromPaise(b.limitAmount || 0),
+        spent: apiClient.fromPaise(b.spentAmount || 0),
+        percent: Number(b.percentageUsed || 0),
+        overspentBy: b.isOverspent ? apiClient.fromPaise(Math.abs(b.remainingAmount || 0)) : 0,
       };
 
-      if (b.percentageUsed >= 100) {
+      if (item.percent >= 100) {
         overspentCategories.push(item);
-      } else if (b.percentageUsed >= 80) {
+      } else if (item.percent >= 80) {
         warningCategories.push(item);
       } else {
         safeCategories.push(item);
@@ -121,15 +131,15 @@ export const insightsService = {
     transactions
       .filter((t) => t.type === 'EXPENSE')
       .forEach((t) => {
-        const key = t.title.toLowerCase().trim();
+        const key = (t.title || 'Untitled').toLowerCase().trim();
         if (!titleCounts[key]) {
           titleCounts[key] = {
             id: `rec_${t.id}`,
-            name: t.title,
-            merchant: t.title,
-            amount: apiClient.fromPaise(t.amount),
+            name: t.title || 'Subscription',
+            merchant: t.title || 'Subscription',
+            amount: apiClient.fromPaise(t.amount || 0),
             frequency: 'Monthly',
-            nextDate: t.date,
+            nextDate: t.date || new Date().toISOString().split('T')[0],
             category: t.category_name || 'General',
             count: 0,
           };
@@ -137,10 +147,12 @@ export const insightsService = {
         titleCounts[key].count += 1;
       });
 
+    // Prioritize repeating items (count >= 2), or top expenses
     const recurringList = Object.values(titleCounts)
+      .sort((a, b) => b.count - a.count || b.amount - a.amount)
       .slice(0, 5);
 
-    const totalMonthly = recurringList.reduce((acc, item) => acc + item.amount, 0);
+    const totalMonthly = recurringList.reduce((acc, item) => acc + (Number(item.amount) || 0), 0);
 
     return {
       totalMonthly,
@@ -158,7 +170,18 @@ export const insightsService = {
   async getSavingsSuggestions() {
     const summary = await apiClient.get('/dashboard/summary');
     const categories = summary.categorySpending || [];
-    const savingsRate = summary.savingsRate || 0;
+    const savingsRate = Number(summary.savingsRate || 0);
+
+    const hasTransactions = Boolean(
+      (summary.recentTransactions && summary.recentTransactions.length > 0) ||
+      (summary.allTimeExpense > 0 || summary.allTimeIncome > 0) ||
+      (summary.expensesThisMonth > 0 || summary.incomeThisMonth > 0)
+    );
+
+    // If user has no transactions, do not present phantom savings recommendations
+    if (!hasTransactions) {
+      return [];
+    }
 
     const suggestions = [];
 
@@ -167,21 +190,32 @@ export const insightsService = {
         id: 'sug_savings_rate',
         title: 'Accelerate Core Savings Rate',
         category: 'Savings',
+        estimatedMonthlySavings: 500,
         potentialSavings: 500,
         description: `Your current savings rate is ${savingsRate}%. Increasing this to the recommended 20% milestone provides an emergency buffer.`,
         actionLabel: 'Adjust Monthly Target',
+        explainer: {
+          dataSource: 'Calculated from net monthly income vs. expenditure ratio.',
+          reason: `Current savings rate (${savingsRate}%) is below the healthy financial benchmark of 20%.`,
+        },
       });
     }
 
     if (categories.length > 0) {
       const top = categories[0];
+      const optVal = Math.round(apiClient.fromPaise(top.totalSpent || 0) * 0.1);
       suggestions.push({
         id: 'sug_top_cat',
         title: `Optimize ${top.name} Spending`,
         category: top.name,
-        potentialSavings: Math.round(apiClient.fromPaise(top.totalSpent) * 0.1),
+        estimatedMonthlySavings: optVal,
+        potentialSavings: optVal,
         description: `${top.name} represents ${top.percentage}% of your monthly expenses. Trimming 10% from this category yields direct savings.`,
         actionLabel: 'Set Category Budget',
+        explainer: {
+          dataSource: `Top monthly spending category from verified ledger records.`,
+          reason: `${top.name} constitutes ${top.percentage}% of total monthly outflows.`,
+        },
       });
     }
 
@@ -189,9 +223,14 @@ export const insightsService = {
       id: 'sug_subscriptions',
       title: 'Review Recurring Subscriptions',
       category: 'Utilities & Tech',
+      estimatedMonthlySavings: 35,
       potentialSavings: 35,
       description: 'Audit unutilized software seats and monthly recurring service memberships.',
       actionLabel: 'Inspect Subscriptions',
+      explainer: {
+        dataSource: 'Recurring subscription and recurring service charges.',
+        reason: 'Periodic audit of recurring charges prevents subscription creep and unused seats.',
+      },
     });
 
     return suggestions;

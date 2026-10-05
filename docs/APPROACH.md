@@ -287,18 +287,48 @@ src/
   2. Added timezone-safe month helpers in `src/frontend/src/services/budgetService.js`:
      - `getCurrentApiMonth()`: returns `YYYY-MM` using local Date (`getFullYear()`, `getMonth() + 1`).
      - `toApiMonth(input)`: normalizes any representation (`'October 2026'`, `'Oct 2026'`, `Date`, or `'YYYY-MM'`) to strict `YYYY-MM`.
-     - `formatMonthDisplay(apiMonth)`: converts `YYYY-MM` to friendly user-facing label (e.g. `'October 2026'`) using safe mid-month day 15 and noon local time to completely prevent timezone boundary drift.
-     - `getAdjacentMonth(apiMonth, delta)`: safely calculates previous/next month across month and year boundaries.
-  3. Sanitized all API methods in `budgetService` (`getBudgets`, `getBudgetOverview`, `createBudget`) to always enforce `toApiMonth(month)`.
-  4. Updated `BudgetsPage.jsx` with:
-     - `selectedMonth` state stored in machine format `YYYY-MM`.
-     - UI display using `formatMonthDisplay(selectedMonth)`.
-     - Month navigation controls (Previous Month, Next Month, and Return to Current Month).
-     - Passed `selectedMonth` into `loadBudgetData` and `BudgetModal`.
-  5. Updated `BudgetModal.jsx` to display friendly month text while tracking and submitting strict `YYYY-MM` to the API.
-  6. Updated `BudgetOverviewCard.jsx` to render `formatMonthDisplay(month)`.
-  7. Created dedicated automated test suite `src/test/budget-month-test.js` (16/16 passing) and integrated `test:budget` into `npm run test:all` (251/251 passing across all 7 suites).
-  8. Verified production frontend build (`npm run build` in `src/frontend`) compiles 68 modules with 0 errors.
+     - `formatMonthDisplay(apiMonth)`: converts `YYYY-MM` to friendly user-facing label (e.g. `'October 2026'`) using safe mid-month day 15 and noon local time to completely prevent timezone   7. Created dedicated automated test suite `src/test/budget-month-test.js` (16/16 passing) and integrated `test:budget` into `npm run test:all` (251/251 passing across all 7 suites).
+   8. Verified production frontend build (`npm run build` in `src/frontend`) compiles 68 modules with 0 errors.
+
+---
+
+### [2026-10-05 23:15 IST] Entry 14: Insights Page Blank Screen Diagnosis, Root Cause Fix & Regression Suite
+- **Focus:** Resolving production deployment bug where the Insights page (`/insights`) in FinTrack Shield rendered completely blank after deployment.
+- **Root Cause Analysis:**
+  1. **Primary Runtime Crash:** In `SavingsSuggestionsCard.jsx`, line 36 executed `sug.estimatedMonthlySavings.toFixed(0)`. However, `insightsService.getSavingsSuggestions()` returned suggestion objects with the key name `potentialSavings: ...` (not `estimatedMonthlySavings`). When React attempted to render the component, `sug.estimatedMonthlySavings` was `undefined`, triggering an uncaught `TypeError: Cannot read properties of undefined (reading 'toFixed')`. Because this occurred inside a React component render function without an error boundary, React unmounted the entire component tree, turning the page completely blank.
+  2. **Empty State Evaluation Bug:** In `InsightsPage.jsx`, the empty state trigger checked `simulatedState === 'empty' || (!analysis && suggestions.length === 0)`. However, `insightsService.getSpendingAnalysis()` always returned a populated analysis object (even for 0 transactions), and `getSavingsSuggestions()` always pushed fallback suggestion objects. As a result, for users with zero transactions, the empty state never fired; instead, React attempted to render the 4 intelligence cards with zeroed/null data, crashing into undefined property calls.
+  3. **Data Mapping Flaw in Month-over-Month Velocity:** `insightsService.js` read `history[...].total_expense || 0`, but the SQLite ledger model query `Transaction.getMonthlyHistory()` returns column name `expense`, causing `previousSpending` to always evaluate to `0`.
+  4. **Lack of Defensive Coalescing in Insight Cards:** `SpendingAnalysisCard`, `RecurringPaymentsCard`, and `BudgetRiskRadar` had unguarded `.toFixed()` calls on amounts that could be null/undefined when data was missing.
+- **Resolution:**
+  1. **`insightsService.js` Fixes:**
+     - Computed `hasTransactions` from `summary.recentTransactions`, `allTimeExpense`, `allTimeIncome`, `expensesThisMonth`, and `incomeThisMonth`.
+     - In `getSpendingAnalysis()`: Returned `hasTransactions: boolean` and mapped `prevRecord.expense ?? prevRecord.total_expense ?? 0` for `previousSpending`.
+     - In `getSavingsSuggestions()`: Returned `[]` when `!hasTransactions` to prevent phantom recommendations on empty accounts. Populated BOTH `estimatedMonthlySavings` and `potentialSavings` on all suggestion objects, and added `explainer: { dataSource, reason }` for transparency drawers.
+     - In `getRecurringPayments()`: Prioritized recurring subscriptions (`count >= 2`), sorted by count/amount, and safely computed numeric `totalMonthly`.
+     - In `getBudgetRisks()`: Ensured all currency and percentage limits are safely parsed.
+  2. **`SavingsSuggestionsCard.jsx` Hardening:**
+     - Safely resolved `const savingsVal = Number(sug.estimatedMonthlySavings ?? sug.potentialSavings ?? 0);` before formatting.
+     - Defensively computed `totalPotentialSavings` using `Number(s.estimatedMonthlySavings ?? s.potentialSavings ?? 0)`.
+     - Added an inline informational empty state when no suggestions are generated.
+  3. **`SpendingAnalysisCard.jsx` Hardening:**
+     - Added dynamic badge text (`Spending Down X%`, `Spending Stable`, or `Spending Up X%`).
+     - Clamped bar percentages between 0% and 100% and formatted currency numbers defensively.
+     - Rendered `#1 Top Expenditure` only when a real top category exists.
+  4. **`RecurringPaymentsCard.jsx` & `BudgetRiskRadar.jsx` Hardening:**
+     - Defensively formatted `Number(totalMonthly || 0).toFixed(2)` and `Number(item.amount || 0).toFixed(2)`.
+     - Added friendly in-card empty states when no recurring charges or budgets exist.
+  5. **`InsightsPage.jsx` Empty State Trigger:**
+     - Updated condition to `simulatedState === 'empty' || !analysis?.hasTransactions`.
+     - When an authenticated user has no transactions, renders the friendly empty state with an actionable "Record Transactions" button that navigates directly to `/transactions`.
+  6. **Automated Regression Suite (`src/test/insights-test.js`):**
+     - Unit reproduction of the runtime exception: proved `buggySuggestion.estimatedMonthlySavings.toFixed(0)` throws `TypeError`, and verified the defensive fix resolves cleanly.
+     - Live API verification for authenticated user with real transactions (`GET /api/dashboard/summary`, `GET /api/budgets`, `GET /api/transactions`).
+     - Algorithm mapping tests for spending velocity, recurring subscriptions, budget risks, and savings suggestions.
+     - Zero-transaction empty state verification proving `hasTransactions === false`, suggestions return `[]`, and cards render without errors.
+     - 39/39 assertions passing.
+  7. **Full Test Suite & Production Build:**
+     - Integrated `test:insights` into `npm run test:all` (290/290 tests passing across all 8 test suites).
+     - Verified production frontend build (`npm run build` in `src/frontend`) compiles 68 modules with 0 errors.
 
 ---
 
@@ -306,13 +336,14 @@ src/
 
 ### 6.1 Testing & Security Verification Strategy
 - **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, password verification, audit logging, category/transaction/budget models, integer paise math, complete IDOR isolation, PS-01 profile management, security hardening, rate limiting, real-data Security Analysis Dashboard, and production CORS verification (128/128 automated tests passing).
+- **Dedicated Insights Intelligence Regression Suite:** `src/test/insights-test.js` verifying runtime exception resolution, defensive numeric formatting, live API correlation, spending velocity, recurring subscriptions, budget risks, savings suggestions, and zero-transaction empty state handling (39/39 passing).
 - **Dedicated Budget Month Format Test Suite:** `src/test/budget-month-test.js` verifying date helpers, YYYY-MM normalization, timezone safety, friendly display formatting, month navigation, and live API endpoints (16/16 passing).
 - **Dedicated Production CORS Test Suite:** `src/test/cors-test.js` verifying OPTIONS preflight, credentialed GET/POST, trailing slash resilience, comma-separated origins, and unauthorized origin rejection (17/17 passing).
 - **Comprehensive 7-Dimension Security Verification Suite:** `src/test/security-final-verify.js` executing live HTTP requests verifying IDOR, SQLi prevention, XSS safety, login rate limiting, export scoping, RBAC, and security dashboard provenance (61/61 assertions passing).
 - **Dedicated Profile Management Test Suite:** `src/test/profile-test.js` verifying safe profile viewing, name/email updates, duplicate email conflict detection, user-ownership isolation, refreshed JWT generation, and audit logging (8/8 passing).
 - **End-to-End Verification Suite:** Dedicated `src/test/e2e-verify.js` testing 12 core functional & security criteria (12/12 passing).
 - **Persistence Verification:** Automated persistence test in `src/test/persistence-verify.js` simulating process termination, connection teardown, and reopening to confirm permanent disk storage in `src/data/fintrack.db` (9/9 passing).
-- **Static Analysis & Build Verification:** Frontend production build (`cmd.exe /c "npm run build"`) compiles 68 modules with 0 errors.
+- **Static Analysis & Build Verification:** Frontend production build (`cmd.exe /c "npm run build"`) compiles 68 modules with 0 errors. Total automated test suite: 290/290 tests passing across 8 suites.
 
 ### 6.2 Deployment Verification
 - **Live Frontend URL:** `https://fin-track-shield.vercel.app` (Vercel static SPA deployment)
@@ -321,9 +352,6 @@ src/
 - **Database Engine:** Node 24 native `node:sqlite` (DatabaseSync) on persistent platform volume (`/data/fintrack.db` via `DB_PATH`)
 - **Deployment Guide:** Complete step-by-step instructions in `deployment/README.md`
 - **Submission Metadata:** Recorded in `metadata/submission.yaml`
-
-
-
 
 
 

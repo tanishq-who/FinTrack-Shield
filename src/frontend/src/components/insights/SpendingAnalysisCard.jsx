@@ -6,26 +6,33 @@ export const SpendingAnalysisCard = ({ analysis }) => {
 
   const {
     currentMonth,
-    currentSpending,
+    currentSpending = 0,
     previousMonth,
-    previousSpending,
-    difference,
-    percentageChange,
+    previousSpending = 0,
+    difference = 0,
+    percentageChange = 0,
     topCategory,
     secondCategory,
     explainer
   } = analysis;
 
   const isReduced = difference < 0;
-  const maxSpend = Math.max(currentSpending, previousSpending, 1);
+  const isStable = difference === 0;
+  const maxSpend = Math.max(Number(currentSpending) || 0, Number(previousSpending) || 0, 1);
+
+  const badgeText = isReduced
+    ? `Spending Down ${Math.abs(percentageChange || 0)}%`
+    : isStable
+    ? 'Spending Stable'
+    : `Spending Up ${Math.abs(percentageChange || 0)}%`;
 
   return (
     <InsightCard
       title="Monthly Spending Velocity"
       subtitle={`${currentMonth} vs ${previousMonth}`}
       iconTheme="teal"
-      badgeText={isReduced ? 'Spending Down 4.7%' : 'Spending Increased'}
-      badgeVariant={isReduced ? 'income' : 'expense'}
+      badgeText={badgeText}
+      badgeVariant={isReduced ? 'income' : (isStable ? 'category' : 'expense')}
       icon={
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
@@ -41,13 +48,13 @@ export const SpendingAnalysisCard = ({ analysis }) => {
           <div className="comparison-label-group">
             <span className="month-name-label">{currentMonth}</span>
             <span className="month-amount-label tabular-nums">
-              ${currentSpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${(Number(currentSpending) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="comparison-bar-track">
             <div
               className="comparison-bar-fill fill-current"
-              style={{ width: `${(currentSpending / maxSpend) * 100}%` }}
+              style={{ width: `${Math.min(100, Math.max(0, ((Number(currentSpending) || 0) / maxSpend) * 100))}%` }}
             ></div>
           </div>
         </div>
@@ -57,13 +64,13 @@ export const SpendingAnalysisCard = ({ analysis }) => {
           <div className="comparison-label-group">
             <span className="month-name-label">{previousMonth}</span>
             <span className="month-amount-label tabular-nums" style={{ color: 'var(--color-text-dark-muted)' }}>
-              ${previousSpending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${(Number(previousSpending) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
           <div className="comparison-bar-track">
             <div
               className="comparison-bar-fill fill-previous"
-              style={{ width: `${(previousSpending / maxSpend) * 100}%` }}
+              style={{ width: `${Math.min(100, Math.max(0, ((Number(previousSpending) || 0) / maxSpend) * 100))}%` }}
             ></div>
           </div>
         </div>
@@ -71,15 +78,21 @@ export const SpendingAnalysisCard = ({ analysis }) => {
 
       {/* Difference summary note */}
       <div className="comparison-delta-callout">
-        <span className="delta-icon">{isReduced ? '📉' : '📈'}</span>
+        <span className="delta-icon">{isReduced ? '📉' : (isStable ? '⚖️' : '📈')}</span>
         <p className="delta-text">
-          You spent <strong>${Math.abs(difference).toFixed(2)}</strong> ({Math.abs(percentageChange)}%){' '}
-          {isReduced ? 'less than last month' : 'more than last month'}.
+          {isStable ? (
+            'Spending matches prior month levels.'
+          ) : (
+            <>
+              You spent <strong>${Math.abs(difference || 0).toFixed(2)}</strong> ({Math.abs(percentageChange || 0)}%){' '}
+              {isReduced ? 'less than last month' : 'more than last month'}.
+            </>
+          )}
         </p>
       </div>
 
       {/* Top Spending Categories Subsection */}
-      {topCategory && (
+      {topCategory && topCategory.name !== 'None' && (
         <div className="top-category-highlight">
           <span className="top-cat-badge">#1 Top Expenditure</span>
           <div className="top-cat-details">
@@ -89,10 +102,10 @@ export const SpendingAnalysisCard = ({ analysis }) => {
             </div>
             <div style={{ textAlign: 'right' }}>
               <span className="top-cat-amount tabular-nums">
-                ${topCategory.amount.toFixed(2)}
+                ${Number(topCategory.amount || 0).toFixed(2)}
               </span>
               <span className="top-cat-percent tabular-nums">
-                ({topCategory.percentage}% of total outflow)
+                ({topCategory.percentage || 0}% of total outflow)
               </span>
             </div>
           </div>
