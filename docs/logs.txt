@@ -2019,7 +2019,7 @@ Agent Response Summary:
 Resolved the production budget month bug by strictly enforcing machine-format YYYY-MM (e.g. 2026-10) across all budget API calls while preserving friendly UI labels (e.g. October 2026). Added timezone-safe month helpers, month navigation controls in BudgetsPage, friendly-to-API normalization in BudgetModal, 16 automated tests in budget-month-test.js, and verified full pass across all 7 test suites and the frontend Vite build.
 
 Commit SHA:
-81b6616d6ba0309f2b8ba32bd7c6fbaddff1c848
+d61664cd4c08f2e0a0a015d51ff746941d91fb37
 
 Files Modified / Created:
 * src/frontend/src/services/budgetService.js (Modified)
