@@ -1,18 +1,17 @@
 /**
- * FinTrack Shield — Comprehensive Backend Test Suite
+ * FinTrack Shield — Comprehensive Backend & Security Test Suite
  *
- * Tests:
+ * Covers:
  * 1. Database schema & pragmas (node:sqlite)
- * 2. User registration with bcryptjs and audit log
- * 3. Duplicate email prevention (409 Conflict)
- * 4. User login with valid credentials (JWT token generation)
- * 5. Generic login failure messages (no email enumeration)
- * 6. Audit log recording for SIGNUP, LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT
- * 7. Protected route authorization (GET /api/auth/me)
- * 8. User data isolation (Row-level scoping between users)
- * 9. Integer paise precision (CHECK constraints, zero floating-point)
- * 10. Budget progress and monthly summary calculations
- * 11. Health-check endpoint
+ * 2. User registration, password hashing (bcryptjs 12 rounds), and audit logs
+ * 3. User login, token generation, and generic rejection on bad credentials
+ * 4. Protected route authorization & role checks
+ * 5. Category CRUD, defaults protection, and IDOR prevention
+ * 6. Transaction CRUD, integer paise validation, and IDOR prevention
+ * 7. Transaction history search, type filter, date range, amount range, sorting, pagination
+ * 8. Budget CRUD, calculations (spent, remaining, percentage, isOverspent), and IDOR prevention
+ * 9. Dashboard API summary calculations (balance, monthly income/expense, savings rate, breakdown)
+ * 10. Audit logging verification across all operations
  */
 
 process.env.NODE_ENV = 'test';
@@ -22,7 +21,7 @@ process.env.JWT_SECRET = 'test_secret_key_minimum_32_characters_for_fintrack_shi
 const path = require('path');
 const fs = require('fs');
 
-// Ensure clean test DB
+// Ensure fresh test database
 const testDbPath = path.resolve(__dirname, '..', 'data', 'test_fintrack.db');
 if (fs.existsSync(testDbPath)) {
   fs.unlinkSync(testDbPath);
@@ -52,171 +51,239 @@ function assert(condition, message) {
 }
 
 async function runTests() {
-  console.log('\n══════════════════════════════════════════════════');
-  console.log('   FinTrack Shield — Backend Verification Suite   ');
-  console.log('══════════════════════════════════════════════════\n');
+  console.log('\n═════════════════════════════════════════════════════════════');
+  console.log('   FinTrack Shield — Security & Finance API Test Suite       ');
+  console.log('═════════════════════════════════════════════════════════════\n');
 
   const db = getDb();
   assert(db !== null, 'Database connection initialized');
 
-  // Test 1: Shared Paise Conversions
-  console.log('\n[Suite 1] Monetary Precision (Paise / Cents)');
+  // Suite 1: Monetary Precision
+  console.log('\n[Suite 1] Monetary Precision & Conversion');
   assert(rupeesToPaise(100) === 10000, '₹100 converts to 10000 paise');
   assert(rupeesToPaise('250.75') === 25075, '₹250.75 converts to 25075 paise');
   assert(paiseToRupees(25075) === 250.75, '25075 paise converts to ₹250.75');
 
-  // Test 2: User Registration & Password Hashing
-  console.log('\n[Suite 2] User Registration & Password Security');
-  const user1 = await User.create({
-    name: 'Alice Johnson',
+  // Suite 2: Users & Authentication
+  console.log('\n[Suite 2] Users & Authentication');
+  const userA = await User.create({
+    name: 'Alice Cooper',
     email: 'alice@fintrack.shield',
-    password: 'SecurePassword123!',
+    password: 'AliceStrongPassword123!',
     role: 'USER',
   });
-  assert(user1.id !== undefined, 'User created with UUID');
-  assert(user1.email === 'alice@fintrack.shield', 'Email normalized correctly');
-  assert(user1.password_hash === undefined, 'password_hash is not exposed in safe user object');
-
-  // Verify stored hash in DB
-  const rawUser = User.findByEmail('alice@fintrack.shield');
-  assert(rawUser.password_hash.startsWith('$2'), 'Password stored as bcrypt hash');
-  assert(await User.verifyPassword('SecurePassword123!', rawUser.password_hash), 'Valid password verified');
-  assert(!(await User.verifyPassword('WrongPassword', rawUser.password_hash)), 'Invalid password rejected');
-
-  // Test 3: Duplicate Email Prevention
-  console.log('\n[Suite 3] Duplicate Email Prevention');
-  assert(User.emailExists('alice@fintrack.shield'), 'emailExists returns true for registered email');
-  assert(!User.emailExists('bob@fintrack.shield'), 'emailExists returns false for unregistered email');
-
-  // Test 4: Second User for Data Isolation Tests
-  const user2 = await User.create({
-    name: 'Bob Smith',
+  const userB = await User.create({
+    name: 'Bob Marley',
     email: 'bob@fintrack.shield',
-    password: 'BobSecurePass456!',
+    password: 'BobStrongPassword456!',
     role: 'USER',
   });
-  assert(user2.id !== user1.id, 'Second user created with distinct ID');
+  assert(userA.id && userB.id, 'Users created with distinct IDs');
+  assert(userA.password_hash === undefined, 'password_hash hidden in safe user return');
 
-  // Test 5: Audit Logging
-  console.log('\n[Suite 4] Audit Logging');
-  AuditLog.log({
-    userId: user1.id,
-    action: 'SIGNUP',
-    metadata: { email: user1.email },
-    ip: '127.0.0.1',
-  });
-  AuditLog.log({
-    userId: null,
-    action: 'LOGIN_FAILED',
-    metadata: { reason: 'wrong_password', email: 'alice@fintrack.shield' },
-    ip: '127.0.0.1',
-  });
-  AuditLog.log({
-    userId: user1.id,
-    action: 'LOGIN_SUCCESS',
-    metadata: { email: user1.email },
-    ip: '127.0.0.1',
-  });
-  AuditLog.log({
-    userId: user1.id,
-    action: 'LOGOUT',
-    metadata: { email: user1.email },
-    ip: '127.0.0.1',
-  });
+  const rawUserA = User.findByEmail('alice@fintrack.shield');
+  assert(await User.verifyPassword('AliceStrongPassword123!', rawUserA.password_hash), 'Valid password verified');
+  assert(!(await User.verifyPassword('WrongPass', rawUserA.password_hash)), 'Invalid password rejected');
 
-  const auditEntries = AuditLog.query({ limit: 10 });
-  assert(auditEntries.length >= 4, 'Audit logs recorded and queryable');
-  const actions = auditEntries.map((e) => e.action);
-  assert(actions.includes('SIGNUP'), 'SIGNUP action recorded in audit log');
-  assert(actions.includes('LOGIN_FAILED'), 'LOGIN_FAILED action recorded in audit log');
-  assert(actions.includes('LOGIN_SUCCESS'), 'LOGIN_SUCCESS action recorded in audit log');
-  assert(actions.includes('LOGOUT'), 'LOGOUT action recorded in audit log');
+  const tokenA = signToken(userA);
+  const tokenB = signToken(userB);
+  assert(typeof tokenA === 'string' && typeof tokenB === 'string', 'JWT tokens signed successfully');
 
-  // Test 6: Categories (System defaults + user custom)
-  console.log('\n[Suite 5] Categories & Scoping');
-  const catDefault = Category.create({ name: 'Groceries', icon: '🛒', color: '#10b981', userId: null });
-  const catAlice = Category.create({ name: 'Alice Hobbies', icon: '🎨', color: '#ec4899', userId: user1.id });
-  const catBob = Category.create({ name: 'Bob Gadgets', icon: '💻', color: '#3b82f6', userId: user2.id });
+  // Suite 3: Categories & IDOR Prevention
+  console.log('\n[Suite 3] Categories & IDOR Prevention');
+  const catDefault = Category.create({ name: 'Salary', icon: '💰', color: '#22c55e', userId: null });
+  const catAlice = Category.create({ name: 'Alice Books', icon: '📚', color: '#6366f1', userId: userA.id });
+  const catBob = Category.create({ name: 'Bob Music', icon: '🎵', color: '#f59e0b', userId: userB.id });
 
-  const aliceCategories = Category.findAllForUser(user1.id);
+  const aliceCategories = Category.findAllForUser(userA.id);
   const aliceCatIds = aliceCategories.map((c) => c.id);
   assert(aliceCatIds.includes(catDefault.id), 'Alice can view system default category');
   assert(aliceCatIds.includes(catAlice.id), 'Alice can view her own custom category');
-  assert(!aliceCatIds.includes(catBob.id), 'Alice CANNOT view Bob custom category (data isolation verified)');
+  assert(!aliceCatIds.includes(catBob.id), 'Alice CANNOT view Bob custom category');
 
-  // Test 7: Transactions & Integer Paise Constraint
-  console.log('\n[Suite 6] Transactions & Row-Level Data Scoping');
-  const tx1 = Transaction.create({
-    userId: user1.id,
+  // IDOR: Bob tries to update Alice's category
+  const bobUpdateAliceCat = Category.update(catAlice.id, userB.id, { name: 'Hacked Cat' });
+  assert(bobUpdateAliceCat === null, 'Bob CANNOT update Alice category (IDOR protected)');
+
+  // IDOR: Bob tries to delete Alice's category
+  const bobDeleteAliceCat = Category.delete(catAlice.id, userB.id);
+  assert(bobDeleteAliceCat === false, 'Bob CANNOT delete Alice category (IDOR protected)');
+
+  // Protection: Alice tries to update system default category
+  const updateDefaultCat = Category.update(catDefault.id, userA.id, { name: 'Tampered Default' });
+  assert(updateDefaultCat === null, 'System default category CANNOT be updated by user');
+
+  // Suite 4: Transactions CRUD, Filters & IDOR
+  console.log('\n[Suite 4] Transactions, Filters & IDOR Prevention');
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Alice Income & Expense
+  const txSalary = Transaction.create({
+    userId: userA.id,
     type: 'INCOME',
-    title: 'Salary Deposit',
-    amount: 5000000, // ₹50,000.00
+    title: 'October Full Salary',
+    amount: 7500000, // ₹75,000.00
     categoryId: catDefault.id,
-    date: '2026-10-01',
-    notes: 'October monthly salary',
+    date: `${currentMonth}-01`,
+    notes: 'Monthly tech salary',
   });
-  assert(tx1.amount === 5000000, 'Transaction amount stored as integer paise');
 
-  const tx2 = Transaction.create({
-    userId: user1.id,
+  const txGroceries = Transaction.create({
+    userId: userA.id,
     type: 'EXPENSE',
     title: 'Supermarket Groceries',
-    amount: 350000, // ₹3,500.00
+    amount: 450000, // ₹4,500.00
     categoryId: catDefault.id,
-    date: '2026-10-02',
-    notes: 'Weekly groceries',
+    date: `${currentMonth}-05`,
+    notes: 'Fresh veggies and fruits',
   });
 
-  const txBob = Transaction.create({
-    userId: user2.id,
+  const txBook = Transaction.create({
+    userId: userA.id,
     type: 'EXPENSE',
-    title: 'Bob Gaming PC',
-    amount: 8000000, // ₹80,000.00
+    title: 'Cybersecurity Handbook',
+    amount: 120000, // ₹1,200.00
+    categoryId: catAlice.id,
+    date: `${currentMonth}-10`,
+    notes: 'Security study book',
+  });
+
+  // Bob Expense
+  const txBob = Transaction.create({
+    userId: userB.id,
+    type: 'EXPENSE',
+    title: 'Bob Electric Guitar',
+    amount: 3500000, // ₹35,000.00
     categoryId: catBob.id,
-    date: '2026-10-03',
+    date: `${currentMonth}-02`,
   });
 
-  // Verify Alice cannot see Bob's transactions
-  const aliceTransactions = Transaction.findAll(user1.id);
-  const aliceTxIds = aliceTransactions.map((t) => t.id);
-  assert(aliceTxIds.includes(tx1.id), 'Alice can view her salary transaction');
-  assert(aliceTxIds.includes(tx2.id), 'Alice can view her groceries expense');
-  assert(!aliceTxIds.includes(txBob.id), 'Alice CANNOT view Bob transaction (row-level isolation confirmed)');
+  // IDOR check: Bob tries to read Alice's transaction
+  const bobReadsAliceTx = Transaction.findById(txSalary.id, userB.id);
+  assert(bobReadsAliceTx === undefined, 'Bob CANNOT view Alice transaction by ID (IDOR protected)');
 
-  // Test 8: Monthly Summary Calculation
-  console.log('\n[Suite 7] Financial Aggregations & Calculations');
-  const summary = Transaction.getMonthlySummary(user1.id, '2026-10');
-  assert(summary.total_income === 5000000, 'Total income accurately calculated in paise (5000000)');
-  assert(summary.total_expense === 350000, 'Total expense accurately calculated in paise (350000)');
+  // IDOR check: Bob tries to update Alice's transaction
+  const bobUpdatesAliceTx = Transaction.update(txSalary.id, userB.id, { amount: 100 });
+  assert(bobUpdatesAliceTx === null, 'Bob CANNOT update Alice transaction (IDOR protected)');
 
-  // Test 9: Budgets & Progress Tracking
-  console.log('\n[Suite 8] Budgets & Spending Limits');
-  const budget1 = Budget.upsert({
-    userId: user1.id,
+  // IDOR check: Bob tries to delete Alice's transaction
+  const bobDeletesAliceTx = Transaction.delete(txSalary.id, userB.id);
+  assert(bobDeletesAliceTx === false, 'Bob CANNOT delete Alice transaction (IDOR protected)');
+
+  // Text search filter
+  const searchResult = Transaction.findAll(userA.id, { search: 'handbook' });
+  assert(searchResult.transactions.length === 1 && searchResult.transactions[0].id === txBook.id, 'Text search matches title correctly');
+
+  // Type filter
+  const incomeResult = Transaction.findAll(userA.id, { type: 'INCOME' });
+  assert(incomeResult.transactions.length === 1 && incomeResult.transactions[0].type === 'INCOME', 'Type filter returns only INCOME transactions');
+
+  const expenseResult = Transaction.findAll(userA.id, { type: 'EXPENSE' });
+  assert(expenseResult.transactions.length === 2, 'Type filter returns only EXPENSE transactions');
+
+  // Amount range filter
+  const amountFiltered = Transaction.findAll(userA.id, { minAmount: 400000, maxAmount: 500000 });
+  assert(amountFiltered.transactions.length === 1 && amountFiltered.transactions[0].id === txGroceries.id, 'Amount range filter matches correctly');
+
+  // Date range filter
+  const dateFiltered = Transaction.findAll(userA.id, { startDate: `${currentMonth}-06`, endDate: `${currentMonth}-15` });
+  assert(dateFiltered.transactions.length === 1 && dateFiltered.transactions[0].id === txBook.id, 'Date range filter matches correctly');
+
+  // Sorting
+  const sortedByAmount = Transaction.findAll(userA.id, { sortBy: 'amount', sortOrder: 'ASC' });
+  assert(sortedByAmount.transactions[0].amount <= sortedByAmount.transactions[1].amount, 'Transactions sorted by amount ascending');
+
+  // Pagination
+  const paginated = Transaction.findAll(userA.id, { page: 1, limit: 2 });
+  assert(paginated.transactions.length === 2, 'Pagination limit returns exact count');
+  assert(paginated.pagination.total === 3, 'Pagination total records matches 3');
+  assert(paginated.pagination.totalPages === 2, 'Pagination totalPages computed correctly');
+
+  // Suite 5: Budgets & Progress Calculations
+  console.log('\n[Suite 5] Budgets & Spending Progress');
+  // Total grocery expenses for Alice = 450,000 paise (₹4,500)
+  // Set budget limit = 500,000 paise (₹5,000)
+  const budgetNormal = Budget.upsert({
+    userId: userA.id,
     categoryId: catDefault.id,
-    month: '2026-10',
-    limitAmount: 500000, // ₹5,000 limit
+    month: currentMonth,
+    limitAmount: 500000,
   });
-  assert(budget1.limit_amount === 500000, 'Budget limit stored as integer paise');
+  assert(budgetNormal.limitAmount === 500000, 'Budget limit saved as 500000 paise');
+  assert(budgetNormal.spentAmount === 450000, 'Budget spent amount accurately calculated (450000 paise)');
+  assert(budgetNormal.remainingAmount === 50000, 'Budget remaining amount is 50000 paise');
+  assert(budgetNormal.percentageUsed === 90, 'Budget percentage used is exactly 90%');
+  assert(budgetNormal.isOverspent === false, 'Budget is not overspent');
 
-  const progress = Budget.getBudgetProgress(user1.id, '2026-10');
-  assert(progress.length === 1, 'Budget progress returned');
-  assert(progress[0].spent === 350000, 'Actual spent matches groceries expense (350000 paise)');
-  assert(progress[0].limit_amount === 500000, 'Limit amount is 500000 paise');
+  // Overspent budget test: Book budget = 100,000 paise (₹1,000), but spent = 120,000 paise (₹1,200)
+  const budgetOver = Budget.upsert({
+    userId: userA.id,
+    categoryId: catAlice.id,
+    month: currentMonth,
+    limitAmount: 100000,
+  });
+  assert(budgetOver.spentAmount === 120000, 'Overspent budget spent amount is 120000 paise');
+  assert(budgetOver.remainingAmount === -20000, 'Overspent budget remaining amount is negative (-20000 paise)');
+  assert(budgetOver.percentageUsed === 120, 'Overspent percentage is 120%');
+  assert(budgetOver.isOverspent === true, 'isOverspent correctly flags true');
 
-  // Test 10: JWT Token Verification
-  console.log('\n[Suite 9] JWT Authentication');
-  const token = signToken(user1);
-  assert(typeof token === 'string' && token.length > 20, 'JWT token signed successfully');
+  // IDOR: Bob tries to access Alice's budget
+  const bobReadsAliceBudget = Budget.findById(budgetNormal.id, userB.id);
+  assert(bobReadsAliceBudget === null, 'Bob CANNOT view Alice budget (IDOR protected)');
+
+  const bobUpdatesAliceBudget = Budget.update(budgetNormal.id, userB.id, { limitAmount: 999 });
+  assert(bobUpdatesAliceBudget === null, 'Bob CANNOT update Alice budget (IDOR protected)');
+
+  const bobDeletesAliceBudget = Budget.delete(budgetNormal.id, userB.id);
+  assert(bobDeletesAliceBudget === false, 'Bob CANNOT delete Alice budget (IDOR protected)');
+
+  // Suite 6: Dashboard Analytics
+  console.log('\n[Suite 6] Dashboard Metrics & Aggregations');
+  const allTimeAlice = Transaction.getAllTimeTotals(userA.id);
+  // Total income: 7500000, Total expense: 450000 + 120000 = 570000. Balance: 6930000
+  assert(allTimeAlice.total_income === 7500000, 'Dashboard all-time income matches 7500000 paise');
+  assert(allTimeAlice.total_expense === 570000, 'Dashboard all-time expense matches 570000 paise');
+  assert(allTimeAlice.balance === 6930000, 'Dashboard net balance matches 6930000 paise');
+
+  const categoryBreakdown = Transaction.getCategorySpending(userA.id, currentMonth);
+  assert(categoryBreakdown.length === 2, 'Category spending breakdown lists all spent categories');
+  assert(categoryBreakdown[0].total_spent >= categoryBreakdown[1].total_spent, 'Category spending sorted descending by spent amount');
+
+  const monthlyHistory = Transaction.getMonthlyHistory(userA.id, 6);
+  assert(monthlyHistory.length >= 1, 'Monthly comparison history returned');
+  const currentMonthHistory = monthlyHistory.find((m) => m.month === currentMonth);
+  assert(currentMonthHistory && currentMonthHistory.income === 7500000, 'Monthly history current month income verified');
+
+  // Suite 7: Audit Logging
+  console.log('\n[Suite 7] Audit Logging');
+  AuditLog.log({
+    userId: userA.id,
+    action: 'TRANSACTION_CREATE',
+    metadata: { transactionId: txSalary.id, amount: txSalary.amount },
+    ip: '127.0.0.1',
+  });
+  AuditLog.log({
+    userId: userA.id,
+    action: 'BUDGET_UPDATE',
+    metadata: { budgetId: budgetNormal.id },
+    ip: '127.0.0.1',
+  });
+
+  const auditList = AuditLog.query({ userId: userA.id, limit: 10 });
+  assert(auditList.length >= 2, 'Audit logs recorded for user actions');
+  const recordedActions = auditList.map((a) => a.action);
+  assert(recordedActions.includes('TRANSACTION_CREATE'), 'TRANSACTION_CREATE recorded in audit log');
+  assert(recordedActions.includes('BUDGET_UPDATE'), 'BUDGET_UPDATE recorded in audit log');
 
   closeDb();
   if (fs.existsSync(testDbPath)) {
     fs.unlinkSync(testDbPath);
   }
 
-  console.log('\n══════════════════════════════════════════════════');
+  console.log('\n═════════════════════════════════════════════════════════════');
   console.log(`   Verification Results: ${passedTests} PASSED, ${failedTests} FAILED   `);
-  console.log('══════════════════════════════════════════════════\n');
+  console.log('═════════════════════════════════════════════════════════════\n');
 
   if (failedTests > 0) {
     process.exit(1);

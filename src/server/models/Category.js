@@ -3,6 +3,7 @@
  *
  * Manages default (system) categories and user-custom categories.
  * Default categories have user_id = NULL and are visible to all users.
+ * Custom categories are owned by a specific user.
  */
 
 const { v4: uuidv4 } = require('uuid');
@@ -17,9 +18,10 @@ const Category = {
   findAllForUser(userId) {
     const db = getDb();
     return db.prepare(
-      `SELECT * FROM categories
+      `SELECT id, name, icon, color, user_id, (user_id IS NULL) AS is_default
+       FROM categories
        WHERE user_id IS NULL OR user_id = ?
-       ORDER BY name`
+       ORDER BY (user_id IS NULL) DESC, name ASC`
     ).all(userId);
   },
 
@@ -32,7 +34,8 @@ const Category = {
   findById(id, userId) {
     const db = getDb();
     return db.prepare(
-      `SELECT * FROM categories
+      `SELECT id, name, icon, color, user_id, (user_id IS NULL) AS is_default
+       FROM categories
        WHERE id = ? AND (user_id IS NULL OR user_id = ?)`
     ).get(id, userId);
   },
@@ -48,8 +51,8 @@ const Category = {
     db.prepare(
       `INSERT INTO categories (id, name, icon, color, user_id)
        VALUES (?, ?, ?, ?, ?)`
-    ).run(id, name, icon, color, userId);
-    return db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+    ).run(id, name.trim(), icon.trim(), color.trim(), userId);
+    return this.findById(id, userId);
   },
 
   /**
@@ -61,8 +64,9 @@ const Category = {
    */
   update(id, userId, { name, icon, color }) {
     const db = getDb();
+    // Verify it exists and is owned by this user
     const existing = db.prepare(
-      'SELECT * FROM categories WHERE id = ? AND user_id = ?'
+      'SELECT id FROM categories WHERE id = ? AND user_id = ?'
     ).get(id, userId);
     if (!existing) return null;
 
@@ -72,13 +76,19 @@ const Category = {
          icon  = COALESCE(?, icon),
          color = COALESCE(?, color)
        WHERE id = ? AND user_id = ?`
-    ).run(name || null, icon || null, color || null, id, userId);
+    ).run(
+      name !== undefined ? name.trim() : null,
+      icon !== undefined ? icon.trim() : null,
+      color !== undefined ? color.trim() : null,
+      id,
+      userId
+    );
 
-    return db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
+    return this.findById(id, userId);
   },
 
   /**
-   * Delete a user-owned category.
+   * Delete a user-owned category (cannot delete default categories).
    * @param {string} id
    * @param {string} userId
    * @returns {boolean}

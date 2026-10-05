@@ -21,16 +21,17 @@ Personal finance applications handle sensitive financial records, income, expens
 - **Potential Attack Vectors:**
   - Credential stuffing & brute-force login attacks
   - SQL injection via unsanitized user inputs
-  - JWT tampering / unauthorized access to other user records (IDOR)
+  - Insecure Direct Object References (IDOR) to access or alter another user's financial records
+  - Unauthorized modification of system default categories
   - Privilege escalation (USER → ADMIN)
   - Floating-point precision loss and arithmetic rounding exploits
 - **OWASP Top 10 Security Controls:**
-  1. **A01 Broken Access Control:** Strict row-level user scoping (`WHERE user_id = ?`) on every query. Role-based middleware (`requireRole`).
-  2. **A02 Cryptographic Failures:** `bcryptjs` (12 rounds) salted password hashing. Stateless JWT signed with HS256.
+  1. **A01 Broken Access Control / IDOR Prevention:** Strict row-level user scoping (`WHERE user_id = ?`) on every query. Server ignores client-supplied userIds and derives identity exclusively from the verified JWT payload.
+  2. **A02 Cryptographic Failures:** `bcryptjs` (12 rounds) salted password hashing. Stateless JWT signed with HS256 and 8h lifetime.
   3. **A03 Injection:** Parameterized SQL queries via `node:sqlite` prepared statements. Zero string concatenation.
-  4. **A04 Insecure Design:** Defense-in-depth with Helmet HTTP security headers, CORS origin restrictions, and rate limiting.
+  4. **A04 Insecure Design:** Defense-in-depth with Helmet HTTP security headers, CORS origin restrictions, and rate limiting (100 req / 15 min).
   5. **A07 Auth Failures:** Generic login error messages preventing user enumeration. Failed login audit logging.
-  6. **A09 Logging & Monitoring:** Immutable, append-only `audit_log` recording every authentication and administrative event.
+  6. **A09 Logging & Monitoring:** Immutable, append-only `audit_log` recording every authentication, transaction, and budget event.
 
 ---
 
@@ -56,7 +57,7 @@ To guarantee zero collisions with the teammate's frontend pages and components, 
 src/
 ├── server/                     ← Dedicated backend namespace
 │   ├── config.js               ← Centralized environment configuration
-│   ├── server.js               ← Express server entrypoint
+│   ├── server.js               ← Express server entrypoint & route mounting
 │   ├── db/
 │   │   ├── database.js         ← node:sqlite singleton (WAL mode, foreign keys)
 │   │   ├── schema.sql          ← Strict SQLite DDL with CHECK constraints
@@ -67,17 +68,21 @@ src/
 │   │   └── validate.js         ← Server-side request body validator
 │   ├── models/
 │   │   ├── User.js             ← bcryptjs hashing, UUIDv4, safe lookup
-│   │   ├── Transaction.js      ← Integer paise storage, row-level scoping
+│   │   ├── Transaction.js      ← Integer paise, search, filters, pagination
 │   │   ├── Category.js         ← Global defaults + user-custom categories
-│   │   ├── Budget.js           ← Monthly budget limits in integer paise
+│   │   ├── Budget.js           ← Monthly budget limits in integer paise + progress
 │   │   └── AuditLog.js         ← Immutable event logger
 │   └── routes/
 │       ├── auth.js             ← Register, login, logout, me
+│       ├── categories.js       ← Categories listing, create, update, delete
+│       ├── transactions.js     ← Transaction CRUD, search, filters, sorting, pagination
+│       ├── budgets.js          ← Budget CRUD, progress metrics & overspent calculations
+│       ├── dashboard.js        ← Dashboard summary metrics & analytics
 │       └── health.js           ← GET /api/health monitoring endpoint
 ├── shared/
 │   └── constants.js            ← Shared roles, paise conversion utilities
 └── test/
-    └── backend-test.js         ← Automated verification test suite
+    └── backend-test.js         ← Automated verification test suite (49 tests)
 ```
 
 ### 2.3 Technology Stack Rationale
@@ -99,9 +104,9 @@ src/
 | Milestone / Phase | Time Window | Key Objectives & Deliverables | Security Verification | Status |
 |---|---|---|---|---|
 | **Phase 1: Foundation & Setup** | 0h – 4h | Onboarding agreement, repo structure, Express server, SQLite DB, models, auth routes, health check | Secret scan & baseline check | `✅ Done` |
-| **Phase 2: Core Domain & Auth** | 4h – 12h | CRUD APIs for transactions/budgets/categories, frontend integration, export | Auth test suite & crypto validation | `✅ Done` |
-| **Phase 3: Security & Hardening**| 12h – 18h | Input validation, rate limiting, error handling, security middleware, admin audit viewer | SAST scanning & edge case tests | `In Progress` |
-| **Phase 4: Polish & Deployment**| 18h – 24h | UI polish, live cloud deployment, final docs & commit freeze | Live deployment URL check | `Planned` |
+| **Phase 2: Core Domain & Auth** | 4h – 12h | Core finance APIs (Categories, Transactions, Budgets, Dashboard Summary) | Automated test suite (49 tests) | `✅ Done` |
+| **Phase 3: Security & Hardening**| 12h – 18h | Input validation, IDOR tests, rate limiting, error handling, security middleware, audit trails | Automated test suite & IDOR suite | `✅ Done` |
+| **Phase 4: Polish & Deployment**| 18h – 24h | Frontend integration sync, live cloud deployment, final docs & commit freeze | Live deployment URL check | `Planned` |
 
 ---
 
@@ -144,6 +149,16 @@ src/
 - **Decision & Rationale:** All backend logic is placed inside `src/server/` and shared constants in `src/shared/`. Teammate's frontend files can reside freely in `src/` or `src/client/`.
 - **Security & Performance Trade-offs:** Clean trust boundaries and zero merge collisions.
 
+### ADR-005: IDOR Prevention via Strict Row-Level Token Scoping
+- **Status:** Accepted
+- **Context:** Financial applications are prime targets for Insecure Direct Object Reference (IDOR) attacks, where users change IDs in request parameters to access or delete another user's records.
+- **Options Considered:**
+  1. Rely on frontend-supplied `userId` — Inherently insecure.
+  2. Check ownership in application memory after querying database — Inefficient and error-prone.
+  3. Enforce `WHERE user_id = ?` directly in every SQL query using authenticated token claims — Ironclad security.
+- **Decision & Rationale:** All data queries (transactions, budgets, custom categories) mandate `user_id = req.user.id`. System default categories (`user_id IS NULL`) are explicitly read-only for standard users.
+- **Security & Performance Trade-offs:** Guaranteed data isolation at the persistence layer with zero risk of cross-tenant data leaks.
+
 ---
 
 ## 5. Engineering Journal & Real-Time Decision Log
@@ -163,12 +178,17 @@ src/
 - **Key Challenges:** Windows developer environment lacked Visual Studio C++ toolchain for native modules.
 - **Resolution:** Converted database connection to native `node:sqlite` and password hashing to `bcryptjs`. Restructured backend into `src/server/` and `src/shared/` for seamless teammate collaboration. Created comprehensive automated verification test suite.
 
+### [2026-10-05 14:10 IST] Entry 4: Implementation of Secure Finance APIs (Categories, Transactions, Budgets, Dashboard)
+- **Focus:** Core financial domain implementation with strict IDOR protections, integer paise monetary math, comprehensive filtering/sorting/pagination, budget tracking calculations, and dashboard aggregations.
+- **Key Challenges:** Calculating accurate budget progress (spent, remaining, percentage, overspent) in SQL without floating-point math, supporting complex transaction queries (text search, date range, amount range, pagination), and verifying user isolation.
+- **Resolution:** Built modular routes for categories, transactions, budgets, and dashboard summary. Verified with 49 automated unit and security tests covering all IDOR attack scenarios.
+
 ---
 
 ## 6. Testing, Security Verification & Deployment Record
 
 ### 6.1 Testing & Security Verification Strategy
-- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, duplicate prevention, password verification, audit logging, category/transaction/budget models, integer paise math, and data isolation.
+- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, duplicate prevention, password verification, audit logging, category/transaction/budget models, integer paise math, and complete IDOR isolation across multiple users (49 automated tests passing).
 - **Static Analysis & Linting:** Dependency review ensuring zero native build dependencies.
 
 ### 6.2 Deployment Verification

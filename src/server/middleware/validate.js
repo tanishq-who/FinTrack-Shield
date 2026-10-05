@@ -1,12 +1,15 @@
 /**
  * FinTrack Shield — Input Validation Middleware
  *
- * Validates request bodies against strict schemas.
- * Returns 400 with specific error messages on failure.
+ * Validates request bodies and parameters against strict schemas.
+ * Rejects invalid inputs early with 400 Bad Request.
  */
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_RE = /^\d{4}-\d{2}$/;
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 /**
  * Validate registration input.
@@ -57,23 +60,23 @@ function validateLogin(req, res, next) {
 }
 
 /**
- * Validate transaction input (strictly integer paise).
+ * Validate Category creation input.
  */
-function validateTransaction(req, res, next) {
-  const { type, title, amount, date } = req.body;
+function validateCategory(req, res, next) {
+  const { name, icon, color } = req.body;
   const errors = [];
 
-  if (!type || !['INCOME', 'EXPENSE'].includes(type)) {
-    errors.push('Type must be INCOME or EXPENSE.');
+  if (!name || typeof name !== 'string' || name.trim().length < 1) {
+    errors.push('Category name is required.');
   }
-  if (!title || typeof title !== 'string' || title.trim().length < 1) {
-    errors.push('Title is required.');
+  if (name && name.trim().length > 50) {
+    errors.push('Category name must not exceed 50 characters.');
   }
-  if (amount === undefined || !Number.isInteger(amount) || amount <= 0) {
-    errors.push('Amount must be a positive integer in paise (e.g., ₹10.50 = 1050 paise).');
+  if (icon && (typeof icon !== 'string' || icon.trim().length > 10)) {
+    errors.push('Icon must be 10 characters or fewer.');
   }
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    errors.push('Date must be in YYYY-MM-DD format.');
+  if (color && !HEX_COLOR_RE.test(color)) {
+    errors.push('Color must be a valid hex color code (e.g. #6366f1).');
   }
 
   if (errors.length > 0) {
@@ -83,15 +86,116 @@ function validateTransaction(req, res, next) {
 }
 
 /**
- * Validate budget input (strictly integer paise).
+ * Validate Category update input.
+ */
+function validateCategoryUpdate(req, res, next) {
+  const { name, icon, color } = req.body;
+  const errors = [];
+
+  if (name !== undefined && (typeof name !== 'string' || name.trim().length < 1 || name.trim().length > 50)) {
+    errors.push('Category name must be between 1 and 50 characters.');
+  }
+  if (icon !== undefined && (typeof icon !== 'string' || icon.trim().length > 10)) {
+    errors.push('Icon must be 10 characters or fewer.');
+  }
+  if (color !== undefined && !HEX_COLOR_RE.test(color)) {
+    errors.push('Color must be a valid hex color code (e.g. #6366f1).');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: 'Validation failed.', details: errors });
+  }
+  next();
+}
+
+/**
+ * Validate transaction creation input (strictly integer paise).
+ */
+function validateTransaction(req, res, next) {
+  const { type, title, amount, date, notes } = req.body;
+  const errors = [];
+
+  if (!type || !['INCOME', 'EXPENSE'].includes(type)) {
+    errors.push('Type must be either INCOME or EXPENSE.');
+  }
+  if (!title || typeof title !== 'string' || title.trim().length < 1) {
+    errors.push('Title is required.');
+  }
+  if (title && title.trim().length > 100) {
+    errors.push('Title must not exceed 100 characters.');
+  }
+  if (amount === undefined || !Number.isInteger(amount) || amount <= 0) {
+    errors.push('Amount must be a positive integer in paise (e.g. ₹10.50 = 1050 paise).');
+  }
+  if (!date || !DATE_RE.test(date)) {
+    errors.push('Date must be in YYYY-MM-DD format.');
+  }
+  if (notes && (typeof notes !== 'string' || notes.length > 500)) {
+    errors.push('Notes must be 500 characters or fewer.');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: 'Validation failed.', details: errors });
+  }
+  next();
+}
+
+/**
+ * Validate transaction update input.
+ */
+function validateTransactionUpdate(req, res, next) {
+  const { type, title, amount, date, notes } = req.body;
+  const errors = [];
+
+  if (type !== undefined && !['INCOME', 'EXPENSE'].includes(type)) {
+    errors.push('Type must be either INCOME or EXPENSE.');
+  }
+  if (title !== undefined && (typeof title !== 'string' || title.trim().length < 1 || title.trim().length > 100)) {
+    errors.push('Title must be between 1 and 100 characters.');
+  }
+  if (amount !== undefined && (!Number.isInteger(amount) || amount <= 0)) {
+    errors.push('Amount must be a positive integer in paise.');
+  }
+  if (date !== undefined && !DATE_RE.test(date)) {
+    errors.push('Date must be in YYYY-MM-DD format.');
+  }
+  if (notes !== undefined && (typeof notes !== 'string' || notes.length > 500)) {
+    errors.push('Notes must be 500 characters or fewer.');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: 'Validation failed.', details: errors });
+  }
+  next();
+}
+
+/**
+ * Validate budget creation/upsert input (strictly integer paise).
  */
 function validateBudget(req, res, next) {
   const { month, limitAmount } = req.body;
   const errors = [];
 
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+  if (!month || !MONTH_RE.test(month)) {
     errors.push('Month must be in YYYY-MM format.');
   }
+  if (limitAmount === undefined || !Number.isInteger(limitAmount) || limitAmount <= 0) {
+    errors.push('Limit amount must be a positive integer in paise.');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: 'Validation failed.', details: errors });
+  }
+  next();
+}
+
+/**
+ * Validate budget update input.
+ */
+function validateBudgetUpdate(req, res, next) {
+  const { limitAmount } = req.body;
+  const errors = [];
+
   if (limitAmount === undefined || !Number.isInteger(limitAmount) || limitAmount <= 0) {
     errors.push('Limit amount must be a positive integer in paise.');
   }
@@ -105,6 +209,10 @@ function validateBudget(req, res, next) {
 module.exports = {
   validateRegister,
   validateLogin,
+  validateCategory,
+  validateCategoryUpdate,
   validateTransaction,
+  validateTransactionUpdate,
   validateBudget,
+  validateBudgetUpdate,
 };
