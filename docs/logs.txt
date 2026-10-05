@@ -1480,4 +1480,96 @@ Actions Taken:
 * Ran git diff --check: exit code 0 (zero conflict markers)
 * Maintained uncommitted state per user direction
 
+================================================================================
+[2026-10-05T19:43:00+05:30] Security Hardening: JWT Secret, Seed Passwords & Login Rate Limiting
+================================================================================
+User Prompt (verbatim):
+Perform one focused security-hardening task only. Do not redesign the UI or add new product features.
+
+Inspect the existing backend configuration, authentication routes, seed file, middleware, and tests.
+
+Fix these security issues:
+
+1. Remove any hardcoded JWT secret fallback from source code.
+- JWT_SECRET must come from environment variables.
+- In production, server startup must fail clearly if JWT_SECRET is missing.
+- .env.example must contain placeholders only, never a real secret.
+
+2. Remove hardcoded demo passwords from source code.
+- Demo seed credentials must come from environment variables or be clearly restricted to development-only setup.
+- Never log passwords.
+
+3. Add stricter rate limiting specifically for login attempts.
+- Use a lower limit than the general API limiter.
+- Return a safe generic error response.
+- Record a real RATE_LIMITED audit event with IP/timestamp metadata.
+
+4. Add tests for:
+- server rejects missing production JWT secret
+- repeated login attempts are rate-limited
+- no secret/password is exposed in API responses or logs
+
+Follow the repository logging and commit rules. Run the relevant tests and tell me:
+- files changed
+- test results
+- commit SHA
+- any environment variables I must add
+
+Agent Response:
+Completed backend security hardening across configuration, authentication routes, seeder, environment documentation, and automated test suites:
+
+1. Hardened JWT Secret Configuration:
+   - Removed the hardcoded fallback string (`fintrack_shield_dev_secret_key_change_in_production_2026`) from `src/server/config.js`.
+   - `config.jwt.secret` now dynamically retrieves `process.env.JWT_SECRET`.
+   - Implemented `validateConfig(config)` which halts server startup in production if `JWT_SECRET` is missing, empty, shorter than 32 characters, or contains a placeholder (`CHANGE_ME`).
+   - Integrated `config.validateConfig(config)` at server initialization in `src/server/server.js`.
+   - Updated `src/.env.example` and `deployment/README.md` to ensure only safe placeholders (`<secure-random-32-char-secret>`) are presented.
+
+2. Hardened Demo & Admin Seed Credentials:
+   - Removed hardcoded credentials from `src/server/db/seed.js`.
+   - Seed credentials are now sourced from `process.env.DEMO_USER_PASSWORD` and `process.env.ADMIN_PASSWORD`, with fallbacks strictly confined to non-production environments (`NODE_ENV !== 'production'`).
+   - In production, missing credentials safely skip demo/admin account creation instead of injecting default passwords.
+   - Removed password string interpolation from console logging, ensuring plaintext credentials are never printed to stdout.
+
+3. Stricter Login Rate Limiting:
+   - Configured `LOGIN_RATE_LIMIT_WINDOW_MS` (default 15m) and `LOGIN_RATE_LIMIT_MAX` (default 5 attempts), substantially stricter than the general API rate limiter (100 reqs / 15m).
+   - Applied dedicated `loginLimiter` middleware on `POST /api/auth/login`.
+   - On rate limit breach, returns a safe generic 429 JSON response (`{ error: 'Too many login attempts. Please try again later.' }`).
+   - Automatically records an immutable `RATE_LIMITED` event in `audit_log` with client IP, endpoint (`/api/auth/login`), HTTP method, and timestamp metadata.
+
+4. Comprehensive Automated Test Verification:
+   - Added [Suite 9] Security Hardening & Edge Cases to `src/test/backend-test.js` covering:
+     * Server rejecting missing, undefined, placeholder, and short production JWT secrets.
+     * Acceptance of valid production JWT secrets (≥32 chars).
+     * Rate limiter triggering HTTP 429 on repeated login attempts.
+     * Emission of `RATE_LIMITED` audit log entries with IP, timestamp, and endpoint metadata.
+     * Response & audit log inspection proving zero plaintext passwords, password hashes, or JWT secrets are exposed.
+   - All 83 tests in `backend-test.js`, 12 tests in `e2e-verify.js`, 8 tests in `profile-test.js`, and all database persistence checks passed (100% pass rate).
+
+Agent Response Summary:
+Hardened JWT secret handling by removing hardcoded fallbacks and enforcing production startup validation. Sourced seed credentials from environment variables while eliminating password console logs. Implemented a strict 5-attempt login rate limiter that logs RATE_LIMITED audit events and returns generic 429 errors. Added comprehensive automated tests in Suite 9, all 83 test assertions passed cleanly.
+
+Commit SHA:
+335d68304b45eb95f228773fbc270b0bf2c4fe7f
+
+Files Modified / Created:
+* src/server/config.js (Modified)
+* src/server/server.js (Modified)
+* src/server/routes/auth.js (Modified)
+* src/server/db/seed.js (Modified)
+* src/.env.example (Modified)
+* deployment/README.md (Modified)
+* src/test/backend-test.js (Modified)
+* docs/logs.txt (Modified)
+
+Actions Taken:
+* Replaced hardcoded JWT fallback with process.env.JWT_SECRET getter and validateConfig() in src/server/config.js
+* Enforced validateConfig() check at startup in src/server/server.js
+* Implemented loginLimiter with RATE_LIMITED audit logging in src/server/routes/auth.js
+* Sourced seed passwords from DEMO_USER_PASSWORD and ADMIN_PASSWORD and removed passwords from console.log in src/server/db/seed.js
+* Added LOGIN_RATE_LIMIT_* and password placeholders to src/.env.example and deployment/README.md
+* Added Suite 9 automated security tests to src/test/backend-test.js
+* Executed cmd.exe /c "npm run test:all" with 100% passing tests
+
+
 

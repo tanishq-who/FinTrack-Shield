@@ -41,12 +41,16 @@ The application enforces defense-in-depth:
 |---------------|-------------|-------------------|----------|
 | `PORT` | API server listen port | `3001` | Yes |
 | `NODE_ENV` | Runtime environment mode | `development` / `production` | Yes |
-| `JWT_SECRET` | Secret key for signing tokens (≥32 chars) | `fintrack_shield_dev_secret_key_change_in_production_2026` | Yes |
+| `JWT_SECRET` | Secret key for signing tokens (≥32 chars) | `<secure-random-32-char-secret>` | Yes (Strictly enforced in production) |
 | `JWT_EXPIRES_IN` | Token validity duration | `8h` | Yes |
 | `DB_PATH` | Relative path to persistent SQLite database | `./data/fintrack.db` | Yes |
 | `CORS_ORIGIN` | Comma-separated list of allowed origins | `http://localhost:3000,http://localhost:5173` | Yes |
-| `RATE_LIMIT_WINDOW_MS` | Rate limiter time window | `900000` (15 min) | Yes |
+| `RATE_LIMIT_WINDOW_MS` | General rate limiter time window | `900000` (15 min) | Yes |
 | `RATE_LIMIT_MAX` | Max requests per IP per window | `100` | Yes |
+| `LOGIN_RATE_LIMIT_WINDOW_MS` | Login rate limiter time window | `900000` (15 min) | Yes |
+| `LOGIN_RATE_LIMIT_MAX` | Max login attempts per IP per window | `5` | Yes |
+| `DEMO_USER_PASSWORD` | Password for demo user account seed | `<strong-demo-password>` (dev: `Demo@1234`) | No (dev fallback only) |
+| `ADMIN_PASSWORD` | Password for admin user account seed | `<strong-admin-password>` (dev: `Admin@1234`) | No (dev fallback only) |
 
 ### Frontend Configuration (`src/frontend/.env`)
 

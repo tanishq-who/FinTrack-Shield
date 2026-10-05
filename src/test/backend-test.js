@@ -324,6 +324,127 @@ async function runTests() {
   const profileAudit = AuditLog.query({ userId: userA.id, action: 'PROFILE_UPDATE' });
   assert(profileAudit.length >= 1, 'PROFILE_UPDATE event recorded in security audit log');
 
+  // [Suite 9] Security Hardening & Edge Cases
+  console.log('\n[Suite 9] Security Hardening & Edge Cases');
+
+  // Test 9.1: Server / config validation rejects missing or insecure production JWT secret
+  const { validateConfig } = require('../server/config');
+
+  let prodMissingSecretRejected = false;
+  try {
+    validateConfig({ nodeEnv: 'production', jwt: { secret: '' } });
+  } catch (err) {
+    prodMissingSecretRejected = err.message.includes('JWT_SECRET');
+  }
+  assert(prodMissingSecretRejected, 'Server rejects missing production JWT secret (empty string)');
+
+  let prodUndefinedSecretRejected = false;
+  try {
+    validateConfig({ nodeEnv: 'production', jwt: { secret: undefined } });
+  } catch (err) {
+    prodUndefinedSecretRejected = err.message.includes('JWT_SECRET');
+  }
+  assert(prodUndefinedSecretRejected, 'Server rejects undefined production JWT secret');
+
+  let prodPlaceholderSecretRejected = false;
+  try {
+    validateConfig({ nodeEnv: 'production', jwt: { secret: 'CHANGE_ME_TO_A_RANDOM_SECRET_STRING_AT_LEAST_32_CHARS' } });
+  } catch (err) {
+    prodPlaceholderSecretRejected = err.message.includes('placeholder');
+  }
+  assert(prodPlaceholderSecretRejected, 'Server rejects default placeholder JWT secret in production');
+
+  let prodShortSecretRejected = false;
+  try {
+    validateConfig({ nodeEnv: 'production', jwt: { secret: 'short-secret' } });
+  } catch (err) {
+    prodShortSecretRejected = err.message.includes('32 characters');
+  }
+  assert(prodShortSecretRejected, 'Server rejects short (< 32 chars) JWT secret in production');
+
+  let prodValidSecretAccepted = false;
+  try {
+    prodValidSecretAccepted = validateConfig({
+      nodeEnv: 'production',
+      jwt: { secret: 'super_secure_production_secret_key_at_least_32_characters' }
+    });
+  } catch (err) {
+    prodValidSecretAccepted = false;
+  }
+  assert(prodValidSecretAccepted === true, 'Server accepts valid production JWT secret (≥32 chars)');
+
+  // Test 9.2: Repeated login attempts are rate-limited & audit log is recorded
+  const http = require('http');
+  const { app } = require('../server/server');
+
+  const testServer = http.createServer(app);
+  await new Promise((resolve) => testServer.listen(0, '127.0.0.1', resolve));
+  const testPort = testServer.address().port;
+
+  let rateLimited = false;
+  let rateLimitStatus = null;
+  let rateLimitBody = null;
+
+  for (let i = 0; i < 7; i++) {
+    const res = await fetch(`http://127.0.0.1:${testPort}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'rate_limit_probe@fintrack.shield', password: 'WrongPassword@123' }),
+    });
+    if (res.status === 429) {
+      rateLimited = true;
+      rateLimitStatus = res.status;
+      rateLimitBody = await res.json();
+      break;
+    }
+    await res.json();
+  }
+
+  await new Promise((resolve) => testServer.close(resolve));
+
+  assert(rateLimited === true && rateLimitStatus === 429, 'Repeated login attempts are rate-limited with HTTP 429');
+  assert(rateLimitBody && rateLimitBody.error === 'Too many login attempts. Please try again later.', 'Rate limit returns safe generic error response');
+
+  const rateLimitAudits = AuditLog.query({ action: 'RATE_LIMITED' });
+  assert(rateLimitAudits.length >= 1, 'RATE_LIMITED event recorded in security audit log');
+  const latestRateAudit = rateLimitAudits[0];
+  const rateMeta = typeof latestRateAudit.metadata === 'string' ? JSON.parse(latestRateAudit.metadata) : latestRateAudit.metadata;
+  assert(rateMeta.endpoint === '/api/auth/login', 'RATE_LIMITED audit log includes endpoint metadata');
+  assert(rateMeta.ip !== undefined, 'RATE_LIMITED audit log includes IP metadata');
+  assert(rateMeta.timestamp !== undefined, 'RATE_LIMITED audit log includes timestamp metadata');
+
+  // Test 9.3: No secret/password is exposed in API responses or logs
+  const testProbeUser = await User.create({
+    name: 'Security Leak Probe',
+    email: `probe_${Date.now()}@fintrack.shield`,
+    password: 'ProbePassword@2026',
+  });
+  assert(testProbeUser.password === undefined, 'No plaintext password returned in User.create');
+  assert(testProbeUser.password_hash === undefined, 'No password_hash exposed in User.create response');
+
+  const fetchedProbeUser = User.findById(testProbeUser.id);
+  assert(fetchedProbeUser.password === undefined, 'No plaintext password in User.findById');
+  assert(fetchedProbeUser.password_hash === undefined, 'No password_hash exposed in User.findById');
+
+  const updatedProbeUser = User.updateProfile(testProbeUser.id, { name: 'Probe Name Updated' });
+  assert(updatedProbeUser.password === undefined, 'No plaintext password in User.updateProfile');
+  assert(updatedProbeUser.password_hash === undefined, 'No password_hash exposed in User.updateProfile');
+
+  const allLogs = AuditLog.query({ limit: 100 });
+  let passwordFoundInAudit = false;
+  let secretFoundInAudit = false;
+  for (const log of allLogs) {
+    const metaStr = typeof log.metadata === 'string' ? log.metadata : JSON.stringify(log.metadata);
+    if (metaStr.includes('ProbePassword@2026') || metaStr.includes('WrongPassword@123') || metaStr.includes('TestPassword@2026')) {
+      passwordFoundInAudit = true;
+    }
+    if (metaStr.includes(process.env.JWT_SECRET)) {
+      secretFoundInAudit = true;
+    }
+  }
+  assert(passwordFoundInAudit === false, 'Zero plaintext passwords leaked in audit log metadata');
+  assert(secretFoundInAudit === false, 'Zero JWT secrets leaked in audit log metadata');
+
   closeDb();
   if (fs.existsSync(testDbPath)) {
     fs.unlinkSync(testDbPath);

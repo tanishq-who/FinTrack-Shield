@@ -26,6 +26,11 @@ const rateLimit = require('express-rate-limit');
 const config = require('./config');
 const { getDb, closeDb } = require('./db/database');
 
+// ─── Validate Security Configuration ────────────────────────────────────────────
+// In production, server startup must fail clearly if JWT_SECRET is missing.
+config.validateConfig(config);
+
+
 // ─── Initialize Express ─────────────────────────────────────────────────────────
 const app = express();
 

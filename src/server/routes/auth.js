@@ -15,11 +15,39 @@
 
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
+const config = require('../config');
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const { requireAuth, signToken } = require('../middleware/auth');
 const { validateRegister, validateLogin, validateProfileUpdate } = require('../middleware/validate');
 const { getClientIp } = require('../middleware/audit');
+
+// Stricter rate limiter specifically for login attempts
+const loginLimiter = rateLimit({
+  windowMs: config.rateLimit.loginWindowMs,
+  max: config.rateLimit.loginMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    const ip = getClientIp(req);
+    AuditLog.log({
+      userId: null,
+      action: 'RATE_LIMITED',
+      metadata: {
+        endpoint: '/api/auth/login',
+        method: req.method,
+        ip,
+        timestamp: new Date().toISOString(),
+      },
+      ip,
+    });
+    return res.status(429).json({
+      error: 'Too many login attempts. Please try again later.',
+    });
+  },
+});
+
 
 /**
  * POST /api/auth/register
@@ -62,7 +90,7 @@ router.post('/register', validateRegister, async (req, res) => {
 /**
  * POST /api/auth/login
  */
-router.post('/login', validateLogin, async (req, res) => {
+router.post('/login', loginLimiter, validateLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
     const ip = getClientIp(req);
@@ -205,5 +233,8 @@ router.put('/me', requireAuth, validateProfileUpdate, async (req, res) => {
   }
 });
 
+router.loginLimiter = loginLimiter;
+
 module.exports = router;
+
 
