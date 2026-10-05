@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AVAILABLE_BUDGET_CATEGORIES, CURRENT_BUDGET_MONTH } from '../../services/mockBudgetsData';
+import { categoryService } from '../../services/categoryService';
 
 export const BudgetModal = ({
   isOpen,
@@ -8,6 +9,15 @@ export const BudgetModal = ({
   budgetToEdit = null
 }) => {
   const isEditing = Boolean(budgetToEdit);
+  const [availableCategories, setAvailableCategories] = useState(AVAILABLE_BUDGET_CATEGORIES);
+
+  useEffect(() => {
+    categoryService.getCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setAvailableCategories(cats.map((c) => c.name));
+      }
+    }).catch(() => {});
+  }, [isOpen]);
 
   const [formData, setFormData] = useState({
     category: 'Food & Dining',
@@ -138,7 +148,7 @@ export const BudgetModal = ({
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               required
             >
-              {AVAILABLE_BUDGET_CATEGORIES.map((cat) => (
+              {availableCategories.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>

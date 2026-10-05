@@ -1,148 +1,128 @@
-import { INITIAL_BUDGETS, CURRENT_BUDGET_MONTH } from './mockBudgetsData';
+/**
+ * FinTrack Shield — Real Budget Service
+ * Direct integration with backend /api/budgets for monthly limits, spent calculations,
+ * progress percentages, and overspent status detection.
+ */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-const USE_MOCK = true;
+import { apiClient } from './apiClient';
+import { categoryService } from './categoryService';
 
-// In-memory store for session continuity
-let inMemoryBudgets = [...INITIAL_BUDGETS];
+export const CURRENT_BUDGET_MONTH = new Date().toISOString().slice(0, 7); // 'YYYY-MM'
 
 export const budgetService = {
   /**
-   * Fetch all category budgets
+   * Fetch all category budgets with calculated spent, remaining, and percentage
    */
   async getBudgets(month = CURRENT_BUDGET_MONTH) {
-    if (USE_MOCK) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const list = inMemoryBudgets.filter(
-            (b) => !b.month || b.month === month
-          );
-          resolve([...list]);
-        }, 120);
-      });
-    }
+    const data = await apiClient.get(`/budgets?month=${encodeURIComponent(month)}`);
+    const rawList = data.budgets || [];
 
-    const res = await fetch(`${API_BASE_URL}/budgets?month=${encodeURIComponent(month)}`);
-    if (!res.ok) throw new Error(`Failed to fetch budgets: ${res.statusText}`);
-    return res.json();
+    return rawList.map((b) => ({
+      id: b.id,
+      categoryId: b.categoryId,
+      category: b.categoryName || 'General',
+      month: b.month,
+      limit: apiClient.fromPaise(b.limitAmount),
+      spent: apiClient.fromPaise(b.spentAmount),
+      remaining: apiClient.fromPaise(b.remainingAmount),
+      percentageUsed: b.percentageUsed,
+      isOverspent: b.isOverspent,
+      color: b.categoryColor || '#10b981',
+      icon: b.categoryIcon || 'tag',
+    }));
   },
 
   /**
-   * Fetch aggregate budget summary for the month
+   * Fetch aggregate budget summary overview for the month
    */
   async getBudgetOverview(month = CURRENT_BUDGET_MONTH) {
-    if (USE_MOCK) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const budgets = inMemoryBudgets.filter(
-            (b) => !b.month || b.month === month
-          );
+    const data = await apiClient.get(`/budgets?month=${encodeURIComponent(month)}`);
+    const summary = data.summary || {
+      totalBudgetLimit: 0,
+      totalBudgetSpent: 0,
+      totalRemaining: 0,
+      overallPercentage: 0,
+      isOverspent: false,
+    };
+    const budgets = data.budgets || [];
 
-          const totalBudget = budgets.reduce((acc, b) => acc + (b.limit || 0), 0);
-          const totalSpent = budgets.reduce((acc, b) => acc + (b.spent || 0), 0);
-          const remaining = Math.max(totalBudget - totalSpent, 0);
-          const overBudgetCount = budgets.filter((b) => (b.spent || 0) > (b.limit || 0)).length;
-          const percentageUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
-
-          resolve({
-            month,
-            totalBudget,
-            totalSpent,
-            remaining,
-            overBudgetCount,
-            percentageUsed: Math.round(percentageUsed * 10) / 10
-          });
-        }, 120);
-      });
-    }
-
-    const res = await fetch(`${API_BASE_URL}/budgets/overview?month=${encodeURIComponent(month)}`);
-    if (!res.ok) throw new Error(`Failed to fetch budget overview: ${res.statusText}`);
-    return res.json();
+    return {
+      month: data.month || month,
+      totalBudget: apiClient.fromPaise(summary.totalBudgetLimit),
+      totalSpent: apiClient.fromPaise(summary.totalBudgetSpent),
+      remaining: apiClient.fromPaise(Math.max(0, summary.totalRemaining)),
+      overBudgetCount: budgets.filter((b) => b.isOverspent).length,
+      percentageUsed: summary.overallPercentage || 0,
+      isOverspent: summary.isOverspent || false,
+    };
   },
 
   /**
-   * Create a new category budget
+   * Create or upsert a category budget
    */
-  async createBudget(data) {
-    if (USE_MOCK) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const newBudget = {
-            ...data,
-            id: `bgt_${Date.now()}`,
-            limit: parseFloat(data.limit),
-            spent: data.spent !== undefined ? parseFloat(data.spent) : 0,
-            month: data.month || CURRENT_BUDGET_MONTH,
-            color: data.color || '#10b981'
-          };
-          inMemoryBudgets = [newBudget, ...inMemoryBudgets];
-          resolve(newBudget);
-        }, 150);
-      });
+  async createBudget(formData) {
+    let categoryId = formData.categoryId || null;
+
+    if (!categoryId && formData.category) {
+      const cat = await categoryService.findByName(formData.category);
+      if (cat) {
+        categoryId = cat.id;
+      }
     }
 
-    const res = await fetch(`${API_BASE_URL}/budgets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!res.ok) throw new Error(`Failed to create budget: ${res.statusText}`);
-    return res.json();
+    const payload = {
+      categoryId,
+      month: formData.month || CURRENT_BUDGET_MONTH,
+      limitAmount: apiClient.toPaise(formData.limit),
+    };
+
+    const data = await apiClient.post('/budgets', payload);
+
+    window.dispatchEvent(new CustomEvent('fintrack:budgets-updated'));
+    const b = data.budget;
+
+    return {
+      id: b.id,
+      categoryId: b.categoryId,
+      category: formData.category || 'General',
+      month: b.month,
+      limit: apiClient.fromPaise(b.limitAmount),
+      spent: 0,
+      remaining: apiClient.fromPaise(b.limitAmount),
+      percentageUsed: 0,
+      isOverspent: false,
+      color: formData.color || '#10b981',
+    };
   },
 
   /**
-   * Update an existing category budget
+   * Update an existing category budget limit
    */
   async updateBudget(id, updatedFields) {
-    if (USE_MOCK) {
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          const index = inMemoryBudgets.findIndex((b) => b.id === id);
-          if (index === -1) {
-            return reject(new Error('Budget not found'));
-          }
-          const updated = {
-            ...inMemoryBudgets[index],
-            ...updatedFields,
-            limit: parseFloat(updatedFields.limit)
-          };
-          inMemoryBudgets[index] = updated;
-          resolve(updated);
-        }, 150);
-      });
-    }
+    const payload = {
+      limitAmount: apiClient.toPaise(updatedFields.limit),
+    };
 
-    const res = await fetch(`${API_BASE_URL}/budgets/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedFields)
-    });
-    if (!res.ok) throw new Error(`Failed to update budget: ${res.statusText}`);
-    return res.json();
+    const data = await apiClient.put(`/budgets/${id}`, payload);
+
+    window.dispatchEvent(new CustomEvent('fintrack:budgets-updated'));
+    const b = data.budget;
+
+    return {
+      id: b.id,
+      categoryId: b.categoryId,
+      month: b.month,
+      limit: apiClient.fromPaise(b.limitAmount),
+    };
   },
 
   /**
    * Delete a category budget by ID
    */
   async deleteBudget(id) {
-    if (USE_MOCK) {
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          const index = inMemoryBudgets.findIndex((b) => b.id === id);
-          if (index === -1) {
-            return reject(new Error('Budget not found'));
-          }
-          const [removed] = inMemoryBudgets.splice(index, 1);
-          resolve(removed);
-        }, 150);
-      });
-    }
+    const data = await apiClient.delete(`/budgets/${id}`);
 
-    const res = await fetch(`${API_BASE_URL}/budgets/${id}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error(`Failed to delete budget: ${res.statusText}`);
-    return res.json();
-  }
+    window.dispatchEvent(new CustomEvent('fintrack:budgets-updated'));
+    return data;
+  },
 };

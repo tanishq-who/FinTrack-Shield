@@ -1,154 +1,199 @@
-import { INITIAL_TRANSACTIONS } from './mockTransactionsData';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-const USE_MOCK = true; // Easily flip to false once backend teammate connects endpoints
-
-// In-memory persistent store during session
-let inMemoryTransactions = [...INITIAL_TRANSACTIONS];
-
 /**
- * Service to manage transaction ledger data.
- * Keeps data access strictly decoupled from React components.
+ * FinTrack Shield — Real Transaction Service
+ * Direct integration with backend /api/transactions with search, filters, pagination,
+ * and integer paise currency management.
  */
+
+import { apiClient } from './apiClient';
+import { categoryService } from './categoryService';
+
 export const transactionService = {
   /**
-   * Fetch transactions with optional client or server-side filtering
+   * Fetch transactions with search, filter, and pagination options
    */
   async getTransactions(filters = {}) {
-    if (USE_MOCK) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          let result = [...inMemoryTransactions];
+    const params = new URLSearchParams();
 
-          // 1. Text Search Filter (Title, Description, Merchant)
-          if (filters.search && filters.search.trim()) {
-            const query = filters.search.toLowerCase().trim();
-            result = result.filter(
-              (tx) =>
-                (tx.title && tx.title.toLowerCase().includes(query)) ||
-                (tx.description && tx.description.toLowerCase().includes(query)) ||
-                (tx.merchant && tx.merchant.toLowerCase().includes(query))
-            );
-          }
-
-          // 2. Type Filter (all / income / expense)
-          if (filters.type && filters.type !== 'all') {
-            result = result.filter((tx) => tx.type === filters.type);
-          }
-
-          // 3. Category Filter
-          if (filters.category && filters.category !== 'all') {
-            result = result.filter((tx) => tx.category === filters.category);
-          }
-
-          // 4. Date Range Filter
-          if (filters.startDate) {
-            result = result.filter((tx) => tx.date >= filters.startDate);
-          }
-          if (filters.endDate) {
-            result = result.filter((tx) => tx.date <= filters.endDate);
-          }
-
-          // Default sort: newest date first
-          result.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-          resolve(result);
-        }, 120);
-      });
+    // 1. Text Search
+    if (filters.search && filters.search.trim()) {
+      params.append('search', filters.search.trim());
     }
 
-    // Live API integration
-    const params = new URLSearchParams();
-    if (filters.search) params.append('q', filters.search);
-    if (filters.type && filters.type !== 'all') params.append('type', filters.type);
-    if (filters.category && filters.category !== 'all') params.append('category', filters.category);
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
+    // 2. Type Filter (income / expense)
+    if (filters.type && filters.type !== 'all') {
+      params.append('type', filters.type.toUpperCase());
+    }
 
-    const res = await fetch(`${API_BASE_URL}/transactions?${params.toString()}`);
-    if (!res.ok) throw new Error(`Failed to fetch transactions: ${res.statusText}`);
-    return res.json();
+    // 3. Category Filter
+    if (filters.category && filters.category !== 'all') {
+      // Find category ID by name if category name was passed
+      const category = await categoryService.findByName(filters.category);
+      if (category) {
+        params.append('categoryId', category.id);
+      }
+    } else if (filters.categoryId) {
+      params.append('categoryId', filters.categoryId);
+    }
+
+    // 4. Date Range
+    if (filters.startDate) {
+      params.append('startDate', filters.startDate);
+    }
+    if (filters.endDate) {
+      params.append('endDate', filters.endDate);
+    }
+
+    // 5. Amount Range
+    if (filters.minAmount !== undefined && filters.minAmount !== '') {
+      params.append('minAmount', apiClient.toPaise(filters.minAmount));
+    }
+    if (filters.maxAmount !== undefined && filters.maxAmount !== '') {
+      params.append('maxAmount', apiClient.toPaise(filters.maxAmount));
+    }
+
+    // 6. Sorting & Pagination
+    params.append('sortBy', filters.sortBy || 'date');
+    params.append('sortOrder', filters.sortOrder || 'DESC');
+    params.append('page', filters.page || 1);
+    params.append('limit', filters.limit || 50);
+
+    const data = await apiClient.get(`/transactions?${params.toString()}`);
+    const rawList = data.transactions || [];
+
+    // Map backend transaction representation to frontend component schema
+    const formatted = rawList.map((tx) => ({
+      id: tx.id,
+      date: tx.date,
+      title: tx.title,
+      description: tx.notes || '',
+      merchant: tx.title,
+      category: tx.category_name || 'Uncategorized',
+      categoryId: tx.category_id,
+      type: (tx.type || 'expense').toLowerCase(),
+      amount: apiClient.fromPaise(tx.amount),
+    }));
+
+    // Expose pagination metadata if needed
+    formatted.pagination = data.pagination;
+    return formatted;
   },
 
   /**
    * Create a new transaction
    */
   async createTransaction(transactionData) {
-    if (USE_MOCK) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const newTx = {
-            ...transactionData,
-            id: `tx_${Date.now()}`,
-            amount: parseFloat(transactionData.amount)
-          };
-          inMemoryTransactions = [newTx, ...inMemoryTransactions];
-          resolve(newTx);
-        }, 150);
-      });
+    let categoryId = transactionData.categoryId || null;
+
+    // Resolve categoryId from category name if missing
+    if (!categoryId && transactionData.category && transactionData.category !== 'all') {
+      const cat = await categoryService.findByName(transactionData.category);
+      if (cat) {
+        categoryId = cat.id;
+      }
     }
 
-    const res = await fetch(`${API_BASE_URL}/transactions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(transactionData)
-    });
-    if (!res.ok) throw new Error(`Failed to create transaction: ${res.statusText}`);
-    return res.json();
+    const payload = {
+      type: (transactionData.type || 'expense').toUpperCase(),
+      title: (transactionData.title || transactionData.merchant || 'Untitled Transaction').trim(),
+      amount: apiClient.toPaise(transactionData.amount),
+      categoryId,
+      date: transactionData.date || new Date().toISOString().slice(0, 10),
+      notes: (transactionData.description || transactionData.notes || '').trim(),
+    };
+
+    const data = await apiClient.post('/transactions', payload);
+
+    // Notify listeners (e.g. dashboard) that transactions changed
+    window.dispatchEvent(new CustomEvent('fintrack:transactions-updated'));
+
+    const tx = data.transaction;
+    return {
+      id: tx.id,
+      date: tx.date,
+      title: tx.title,
+      description: tx.notes || '',
+      merchant: tx.title,
+      category: tx.category_name || transactionData.category || 'Uncategorized',
+      categoryId: tx.category_id,
+      type: (tx.type || 'expense').toLowerCase(),
+      amount: apiClient.fromPaise(tx.amount),
+    };
   },
 
   /**
    * Update an existing transaction
    */
   async updateTransaction(id, updatedFields) {
-    if (USE_MOCK) {
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          const index = inMemoryTransactions.findIndex((tx) => tx.id === id);
-          if (index === -1) {
-            return reject(new Error('Transaction not found'));
-          }
-          const updated = {
-            ...inMemoryTransactions[index],
-            ...updatedFields,
-            amount: parseFloat(updatedFields.amount)
-          };
-          inMemoryTransactions[index] = updated;
-          resolve(updated);
-        }, 150);
-      });
+    let categoryId = updatedFields.categoryId;
+
+    if (!categoryId && updatedFields.category && updatedFields.category !== 'all') {
+      const cat = await categoryService.findByName(updatedFields.category);
+      if (cat) {
+        categoryId = cat.id;
+      }
     }
 
-    const res = await fetch(`${API_BASE_URL}/transactions/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updatedFields)
-    });
-    if (!res.ok) throw new Error(`Failed to update transaction: ${res.statusText}`);
-    return res.json();
+    const payload = {
+      type: updatedFields.type ? updatedFields.type.toUpperCase() : undefined,
+      title: updatedFields.title !== undefined ? updatedFields.title.trim() : undefined,
+      amount: updatedFields.amount !== undefined ? apiClient.toPaise(updatedFields.amount) : undefined,
+      categoryId,
+      date: updatedFields.date,
+      notes: updatedFields.description !== undefined ? updatedFields.description.trim() : undefined,
+    };
+
+    const data = await apiClient.put(`/transactions/${id}`, payload);
+
+    // Notify listeners (e.g. dashboard) that transactions changed
+    window.dispatchEvent(new CustomEvent('fintrack:transactions-updated'));
+
+    const tx = data.transaction;
+    return {
+      id: tx.id,
+      date: tx.date,
+      title: tx.title,
+      description: tx.notes || '',
+      merchant: tx.title,
+      category: tx.category_name || updatedFields.category || 'Uncategorized',
+      categoryId: tx.category_id,
+      type: (tx.type || 'expense').toLowerCase(),
+      amount: apiClient.fromPaise(tx.amount),
+    };
   },
 
   /**
    * Delete a transaction by ID
    */
   async deleteTransaction(id) {
-    if (USE_MOCK) {
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          const index = inMemoryTransactions.findIndex((tx) => tx.id === id);
-          if (index === -1) {
-            return reject(new Error('Transaction not found'));
-          }
-          const [removed] = inMemoryTransactions.splice(index, 1);
-          resolve(removed);
-        }, 150);
-      });
-    }
+    const data = await apiClient.delete(`/transactions/${id}`);
 
-    const res = await fetch(`${API_BASE_URL}/transactions/${id}`, {
-      method: 'DELETE'
+    // Notify listeners (e.g. dashboard) that transactions changed
+    window.dispatchEvent(new CustomEvent('fintrack:transactions-updated'));
+    return data;
+  },
+
+  /**
+   * Export authenticated user transactions to CSV file
+   */
+  async exportCsv() {
+    const token = localStorage.getItem('fintrack_auth_token');
+    const res = await fetch(`${apiClient.baseUrl}/transactions/export?format=csv`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
     });
-    if (!res.ok) throw new Error(`Failed to delete transaction: ${res.statusText}`);
-    return res.json();
-  }
+    if (!res.ok) {
+      throw new Error('Failed to export transactions.');
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fintrack-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
+

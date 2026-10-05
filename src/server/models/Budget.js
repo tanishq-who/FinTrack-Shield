@@ -42,16 +42,33 @@ const Budget = {
    */
   upsert({ userId, categoryId = null, month, limitAmount }) {
     const db = getDb();
-    const id = uuidv4();
+    const catId = categoryId || null;
 
-    db.prepare(
-      `INSERT INTO budgets (id, user_id, category_id, month, limit_amount)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(user_id, category_id, month)
-       DO UPDATE SET limit_amount = excluded.limit_amount`
-    ).run(id, userId, categoryId, month, limitAmount);
+    // Check if budget already exists (handles categoryId IS NULL properly)
+    let existing;
+    if (catId) {
+      existing = db.prepare(
+        'SELECT id FROM budgets WHERE user_id = ? AND category_id = ? AND month = ?'
+      ).get(userId, catId, month);
+    } else {
+      existing = db.prepare(
+        'SELECT id FROM budgets WHERE user_id = ? AND category_id IS NULL AND month = ?'
+      ).get(userId, month);
+    }
 
-    return this.findProgressByMonthAndCategory(userId, month, categoryId);
+    if (existing) {
+      db.prepare(
+        'UPDATE budgets SET limit_amount = ? WHERE id = ?'
+      ).run(limitAmount, existing.id);
+    } else {
+      const id = uuidv4();
+      db.prepare(
+        `INSERT INTO budgets (id, user_id, category_id, month, limit_amount)
+         VALUES (?, ?, ?, ?, ?)`
+      ).run(id, userId, catId, month, limitAmount);
+    }
+
+    return this.findProgressByMonthAndCategory(userId, month, catId);
   },
 
   /**

@@ -5,7 +5,10 @@ version: "1.0"
 
 submission:
   team_id: "team-yp"
+  problem_statement: "PS-01 Personal Finance"
+  project_name: "FinTrack Shield"
   repository: "https://github.com/tanishq-who/FinTrack-Shield.git"
-  commit_sha: ""
-  deployment_url: ""
-  submitted_at: ""
+  commit_sha: ""  # Freeze with git rev-parse HEAD when committing
+  deployment_url: "http://localhost:3000"
+  health_url: "http://localhost:3001/api/health"
+  submitted_at: "2026-10-05T15:50:00+05:30"

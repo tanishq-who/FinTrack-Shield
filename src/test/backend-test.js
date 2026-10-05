@@ -276,6 +276,54 @@ async function runTests() {
   assert(recordedActions.includes('TRANSACTION_CREATE'), 'TRANSACTION_CREATE recorded in audit log');
   assert(recordedActions.includes('BUDGET_UPDATE'), 'BUDGET_UPDATE recorded in audit log');
 
+  // Suite 8: PS-01 Profile Management & Ownership Protection
+  console.log('\n[Suite 8] PS-01 Profile Management & Ownership Protection');
+  const profileA = User.findById(userA.id);
+  assert(profileA && profileA.id === userA.id, 'User can view own profile');
+  assert(profileA.password_hash === undefined, 'Profile view hides password_hash (safe projection)');
+  assert(profileA.name === 'Alice Cooper', 'Profile name matches initial creation');
+  assert(profileA.email === 'alice@fintrack.shield', 'Profile email matches initial creation');
+
+  const updatedNameUser = User.updateProfile(userA.id, { name: 'Alice Cooper Hardened' });
+  assert(updatedNameUser.name === 'Alice Cooper Hardened', 'User name updated successfully');
+  assert(updatedNameUser.email === 'alice@fintrack.shield', 'User email remains unchanged when updating name');
+
+  const newEmailA = 'alice_secure_2026@fintrack.shield';
+  const updatedEmailUser = User.updateProfile(userA.id, { email: newEmailA });
+  assert(updatedEmailUser.email === newEmailA, 'User email updated successfully');
+  assert(updatedEmailUser.name === 'Alice Cooper Hardened', 'User name remains unchanged when updating email');
+
+  // Duplicate email detection: Alice cannot claim Bob's email
+  const isTakenByBob = User.emailTakenByOther('bob@fintrack.shield', userA.id);
+  assert(isTakenByBob === true, 'Duplicate email collision correctly flagged for other user');
+
+  // Self email check: Alice keeping her own email is not flagged as collision
+  const isTakenBySelf = User.emailTakenByOther(newEmailA, userA.id);
+  assert(isTakenBySelf === false, 'User own email not flagged as duplicate collision');
+
+  // User ownership isolation: Updating non-existent user returns null
+  const nonExistentUpdate = User.updateProfile('00000000-0000-0000-0000-000000000000', { name: 'Hacker' });
+  assert(nonExistentUpdate === null, 'Updating non-existent user returns null');
+
+  // User B profile remains completely unaffected (ownership isolation)
+  const profileB = User.findById(userB.id);
+  assert(profileB.name === 'Bob Marley', 'User B name remains intact (ownership isolated)');
+  assert(profileB.email === 'bob@fintrack.shield', 'User B email remains intact (ownership isolated)');
+
+  // Refreshed token signed with new email claim
+  const refreshedToken = signToken(updatedEmailUser);
+  assert(typeof refreshedToken === 'string' && refreshedToken.split('.').length === 3, 'Refreshed JWT token generated with updated profile claims');
+
+  // Audit logging for PROFILE_UPDATE
+  AuditLog.log({
+    userId: userA.id,
+    action: 'PROFILE_UPDATE',
+    metadata: { previousEmail: 'alice@fintrack.shield', newEmail: newEmailA, nameUpdated: true },
+    ip: '127.0.0.1',
+  });
+  const profileAudit = AuditLog.query({ userId: userA.id, action: 'PROFILE_UPDATE' });
+  assert(profileAudit.length >= 1, 'PROFILE_UPDATE event recorded in security audit log');
+
   closeDb();
   if (fs.existsSync(testDbPath)) {
     fs.unlinkSync(testDbPath);

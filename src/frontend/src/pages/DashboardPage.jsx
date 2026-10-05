@@ -48,6 +48,18 @@ export const DashboardPage = ({ simulatedState = 'loaded', onNavigate }) => {
 
   useEffect(() => {
     loadDashboardData();
+
+    const handleDataChange = () => {
+      loadDashboardData();
+    };
+
+    window.addEventListener('fintrack:transactions-updated', handleDataChange);
+    window.addEventListener('fintrack:budgets-updated', handleDataChange);
+
+    return () => {
+      window.removeEventListener('fintrack:transactions-updated', handleDataChange);
+      window.removeEventListener('fintrack:budgets-updated', handleDataChange);
+    };
   }, [loadDashboardData]);
 
   // Handle Simulated State overrides (Requested in dashboard states requirement)

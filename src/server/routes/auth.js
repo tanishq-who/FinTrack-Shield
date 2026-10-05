@@ -18,7 +18,7 @@ const router = express.Router();
 const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const { requireAuth, signToken } = require('../middleware/auth');
-const { validateRegister, validateLogin } = require('../middleware/validate');
+const { validateRegister, validateLogin, validateProfileUpdate } = require('../middleware/validate');
 const { getClientIp } = require('../middleware/audit');
 
 /**
@@ -152,4 +152,58 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ user });
 });
 
+/**
+ * PUT /api/auth/me
+ * Update authenticated user's own profile (name, email).
+ * Strictly user-ownership protected: uses req.user.id from JWT.
+ */
+router.put('/me', requireAuth, validateProfileUpdate, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const ip = getClientIp(req);
+    const userId = req.user.id;
+
+    // Check if new email is already taken by someone else
+    if (email && User.emailTakenByOther(email, userId)) {
+      return res.status(409).json({ error: 'This email is already in use by another account.' });
+    }
+
+    const previousProfile = User.findById(userId);
+    if (!previousProfile) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const updatedUser = User.updateProfile(userId, { name, email });
+
+    // Generate new signed JWT token with updated email/name claims if email changed
+    const refreshedToken = signToken({
+      id: updatedUser.id,
+      email: updatedUser.email,
+      role: updatedUser.role,
+    });
+
+    // Record audit log for profile mutation
+    AuditLog.log({
+      userId,
+      action: 'PROFILE_UPDATE',
+      metadata: {
+        previousEmail: previousProfile.email,
+        newEmail: updatedUser.email,
+        nameUpdated: name !== undefined && name !== previousProfile.name,
+      },
+      ip,
+    });
+
+    res.json({
+      message: 'Profile updated successfully.',
+      user: updatedUser,
+      token: refreshedToken,
+    });
+  } catch (err) {
+    console.error('Update profile error:', err.message);
+    res.status(500).json({ error: 'Failed to update profile.' });
+  }
+});
+
 module.exports = router;
+

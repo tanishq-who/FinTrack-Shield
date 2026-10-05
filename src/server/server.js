@@ -66,6 +66,7 @@ app.use('/api/categories',   require('./routes/categories'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/budgets',      require('./routes/budgets'));
 app.use('/api/dashboard',    require('./routes/dashboard'));
+app.use('/api/admin',        require('./routes/admin'));
 
 // ─── 404 Handler ────────────────────────────────────────────────────────────────
 app.use('/api/*', (req, res) => {

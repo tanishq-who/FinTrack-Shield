@@ -7,7 +7,11 @@ export const Layout = ({
   activeRoute,
   onNavigate,
   stateMode,
-  onChangeStateMode
+  onChangeStateMode,
+  user,
+  onLogout,
+  onOpenAuth,
+  onOpenProfile,
 }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -18,6 +22,10 @@ export const Layout = ({
         onNavigate={onNavigate}
         mobileOpen={mobileNavOpen}
         onCloseMobileNav={() => setMobileNavOpen(false)}
+        user={user}
+        onLogout={onLogout}
+        onOpenAuth={onOpenAuth}
+        onOpenProfile={onOpenProfile}
       />
 
       <div className="app-main">
@@ -26,6 +34,10 @@ export const Layout = ({
           onToggleMobileNav={() => setMobileNavOpen(!mobileNavOpen)}
           stateMode={stateMode}
           onChangeStateMode={onChangeStateMode}
+          user={user}
+          onLogout={onLogout}
+          onOpenAuth={onOpenAuth}
+          onOpenProfile={onOpenProfile}
         />
         {children}
       </div>

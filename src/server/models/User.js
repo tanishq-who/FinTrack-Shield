@@ -82,6 +82,45 @@ const User = {
     const row = db.prepare('SELECT 1 FROM users WHERE email = ?').get(email.toLowerCase().trim());
     return !!row;
   },
+
+  /**
+   * Check if an email is already registered by any user other than excludeUserId.
+   * @param {string} email
+   * @param {string} excludeUserId
+   * @returns {boolean}
+   */
+  emailTakenByOther(email, excludeUserId) {
+    const db = getDb();
+    const row = db.prepare(
+      'SELECT 1 FROM users WHERE email = ? AND id != ?'
+    ).get(email.toLowerCase().trim(), excludeUserId);
+    return !!row;
+  },
+
+  /**
+   * Securely update a user's name and/or email.
+   * @param {string} id
+   * @param {{ name?: string, email?: string }} data
+   * @returns {object|null}
+   */
+  updateProfile(id, { name, email }) {
+    const db = getDb();
+    const existing = db.prepare('SELECT id FROM users WHERE id = ?').get(id);
+    if (!existing) return null;
+
+    db.prepare(
+      `UPDATE users SET
+         name  = COALESCE(?, name),
+         email = COALESCE(?, email)
+       WHERE id = ?`
+    ).run(
+      name !== undefined ? name.trim() : null,
+      email !== undefined ? email.toLowerCase().trim() : null,
+      id
+    );
+
+    return this.findById(id);
+  },
 };
 
 module.exports = User;

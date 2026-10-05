@@ -1,7 +1,9 @@
-<<<<<<< HEAD
-# Dependency directories
+# Node dependencies & build artifacts
 node_modules/
 **/node_modules/
+dist/
+dist-ssr/
+*.log
 
 # Local database and data directories
 data/
@@ -10,30 +12,15 @@ data/
 *.db-wal
 *.db-shm
 
-# Environment and secrets
-.env
-.env.local
-**/.env
-**/.env.local
-
-# OS generated files
-.DS_Store
-Thumbs.db
-=======
-# Node dependencies & build artifacts
-node_modules/
-dist/
-dist-ssr/
-*.log
-
 # Environment secrets
 .env
 .env.local
 .env.*.local
+**/.env
+**/.env.local
 
 # IDE & OS files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
->>>>>>> 9ba6d85810861c3798e6b706d0ea472322ac2022

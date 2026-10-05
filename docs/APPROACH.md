@@ -86,17 +86,10 @@ src/
 ```
 
 ### 2.3 Technology Stack Rationale
-<<<<<<< HEAD
-- **Backend Framework:** Express.js (v4) — Lightweight, battle-tested HTTP server.
+- **Backend / API Framework:** Express.js (v4) — Lightweight, battle-tested HTTP server with Helmet, CORS, and rate-limiting middleware.
+- **Frontend / Client:** React 18 + Vite — SPA with pure SVG charts, decoupled service layer, dark navy & white surface fintech theme, WCAG AA compliance. Fast bundling, zero heavy chart dependencies, and seamless REST integration.
 - **Database & Persistence:** Node.js 24 native `node:sqlite` (`DatabaseSync`) — File-based, zero native compilation, zero external C++ dependencies, synchronous queries eliminating async race conditions, WAL mode for concurrent reads.
 - **Authentication & Cryptography:** `bcryptjs` (12 rounds) for salted password hashing + `jsonwebtoken` (HS256) for stateless authentication.
-=======
-*Explain the tools selected and why alternatives were rejected:*
-- **Backend / API Framework:** (e.g., FastAPI, Express, Go Gin) — *Why chosen:*
-- **Frontend / Client:** React 18 + Vite (SPA with pure SVG charts, decoupled service layer, dark navy & white surface fintech theme, WCAG AA compliance) — *Why chosen: Fast bundling, component modularity, zero heavy chart dependencies, decoupled data service layer allowing seamless backend endpoint integration.*
-- **Database & Persistence:** (e.g., PostgreSQL, SQLite, Redis) — *Why chosen:*
-- **Authentication & Cryptography:** (e.g., Bcrypt/Argon2, PyJWT) — *Why chosen:*
->>>>>>> 9ba6d85810861c3798e6b706d0ea472322ac2022
 
 ### 2.4 Defense-in-Depth Security Controls
 1. **Authentication & Session Security:** Salted bcrypt hashing (12 rounds), short-lived JWT tokens (8h), zero plaintext passwords in responses or logs.
@@ -111,17 +104,10 @@ src/
 
 | Milestone / Phase | Time Window | Key Objectives & Deliverables | Security Verification | Status |
 |---|---|---|---|---|
-<<<<<<< HEAD
 | **Phase 1: Foundation & Setup** | 0h – 4h | Onboarding agreement, repo structure, Express server, SQLite DB, models, auth routes, health check | Secret scan & baseline check | `✅ Done` |
 | **Phase 2: Core Domain & Auth** | 4h – 12h | Core finance APIs (Categories, Transactions, Budgets, Dashboard Summary) | Automated test suite (49 tests) | `✅ Done` |
 | **Phase 3: Security & Hardening**| 12h – 18h | Input validation, IDOR tests, rate limiting, error handling, security middleware, audit trails | Automated test suite & IDOR suite | `✅ Done` |
-| **Phase 4: Polish & Deployment**| 18h – 24h | Frontend integration sync, live cloud deployment, final docs & commit freeze | Live deployment URL check | `Planned` |
-=======
-| **Phase 1: Foundation & Setup** | 0h – 4h | Contract onboarding, repo setup, frontend scaffold & dashboard UI | Production build check passed | `In Progress` |
-| **Phase 2: Core Domain & Auth** | 4h – 12h | Core business logic, secure authentication & authorization | Auth test suite & crypto validation | `Planned` |
-| **Phase 3: Security & Hardening**| 12h – 18h | Input validation, rate limiting, error handling, security middleware | SAST scanning & edge case tests | `Planned` |
-| **Phase 4: Polish & Deployment**| 18h – 24h | UI polish, live cloud deployment, final docs & commit freeze | Live deployment URL check | `Planned` |
->>>>>>> 9ba6d85810861c3798e6b706d0ea472322ac2022
+| **Phase 4: Full-Stack Integration & Polish**| 18h – 24h | Connect Vite React frontend to real backend APIs, live dashboard updates, auth modal, deployment ready | Frontend & backend build & test pass | `✅ Done` |
 
 ---
 
@@ -198,15 +184,56 @@ src/
 - **Key Challenges:** Calculating accurate budget progress (spent, remaining, percentage, overspent) in SQL without floating-point math, supporting complex transaction queries (text search, date range, amount range, pagination), and verifying user isolation.
 - **Resolution:** Built modular routes for categories, transactions, budgets, and dashboard summary. Verified with 49 automated unit and security tests covering all IDOR attack scenarios.
 
+### [2026-10-05 14:38 IST] Entry 5: Frontend & Backend Full-Stack Integration
+- **Focus:** Safely connecting teammate's React 18 / Vite frontend in `src/frontend/` to the real Express/SQLite backend without breaking or redesigning existing UI styles and components.
+- **Key Challenges:** Seamless token management across page reloads, converting integer paise into display rupees/dollars, synchronizing real-time dashboard updates across transaction mutations, and gating protected pages while providing demo access.
+- **Resolution:** Built centralized `apiClient.js` with Bearer auth injection, 401 handling, and integer paise conversion. Built `authService.js` and `AuthModal.jsx` with full input validation and quick demo account fill. Replaced mock services (`dashboardService.js`, `transactionService.js`, `budgetService.js`, `insightsService.js`, `categoryService.js`) with authenticated REST calls. Updated `App.jsx`, `Layout.jsx`, `Navbar.jsx`, and `Sidebar.jsx` with dynamic user profile information and one-click sign out. Verified clean production build (`vite build` passed in 23s) and test suites.
+
+### [2026-10-05 15:35 IST] Entry 6: Database Persistence & Full Model Verification Across Restarts
+- **Focus:** Connecting all five data models (`User`, `Transaction`, `Category`, `Budget`, `AuditLog`) to persistent storage via Node 24 native `node:sqlite`, verifying permanent disk persistence across server restarts, and establishing root forwarding architecture.
+- **Key Challenges:** Ensuring seamless import compatibility whether callers require `src/models/` or `src/server/models/`, confirming strict user data isolation at the SQL query level, and validating that dashboard summaries compute purely from persisted database transactions.
+- **Resolution:** 
+  1. Configured SQLite with Write-Ahead Logging (`PRAGMA journal_mode = WAL;`) and enforced relational constraints (`PRAGMA foreign_keys = ON;`) stored at `src/data/fintrack.db`.
+  2. Created dual-path re-export modules at `src/config.js`, `src/server.js`, `src/db/`, `src/models/`, `src/routes/`, and `src/middleware/` delegating cleanly to `src/server/`.
+  3. Created and executed `src/test/persistence-verify.js`: created user, category, transactions, budget, and audit log, explicitly closed the database connection, re-opened the database in a fresh connection, and confirmed 100% data retention and accurate dashboard balance calculation.
+  4. Verified user isolation: User B receives zero records when querying User A's transactions and budgets, and direct ID lookup returns 404/not found.
+  5. Both backend test suites (`backend-test.js` [49/49 passed] and `persistence-verify.js` [passed]) and frontend production build (`vite build` [66 modules, 0 errors]) verified clean.
+
+### [2026-10-05 15:50 IST] Entry 7: Final End-to-End Verification, Export & Security Admin Center
+- **Focus:** Comprehensive verification across all 11 core application flows: registration, authentication, transaction CRUD, multi-criteria filtering, monthly budget calculations, live dashboard analytics, financial insights, CSV/JSON export, user isolation, admin RBAC, and security audit logs.
+- **Key Challenges:** Adding CSV transaction export without route collision (`/export` before `/:id`), establishing privileged administrative console for system telemetry while blocking non-admin access, and populating realistic multi-category demo ledger records.
+- **Resolution:**
+  1. Built and mounted `/api/transactions/export` supporting RFC-compliant CSV with rupee conversion and JSON formats.
+  2. Built `src/server/routes/admin.js` protected by `requireAuth` and `requireRole('ADMIN')` for user inspection, system metrics, and audit log exploration.
+  3. Built `AdminPage.jsx` integrated into the React frontend and accessible to users with the `ADMIN` role.
+  4. Enhanced database seeder (`seed.js`) to create an administrator account (`admin@fintrack.local` / `Admin@1234`), 10 default categories, and realistic current-month income/expense transactions and budgets for the demo user (`demo@fintrack.local` / `Demo@1234`).
+  5. Authored and executed `src/test/e2e-verify.js` verifying all 11 requirements with 100% pass rate.
+  6. Verified frontend production build compiles 67 modules with 0 errors (`vite build` in 29.9s). Updated all deployment, README, and submission documentation.
+
+### [2026-10-05 19:05 IST] Entry 8: PS-01 Profile Management & User-Ownership Protection Verification
+- **Focus:** Thorough verification, testing, and hardening of mandatory PS-01 user profile viewing and updating capabilities (`GET /api/auth/me` and `PUT /api/auth/me`).
+- **Key Challenges:** Enforcing strict user-ownership so a user can never update another user's profile, validating input fields (name length and email regex), detecting cross-user email collisions without false conflicts when keeping one's own email, re-issuing refreshed JWT tokens upon email change, and maintaining visual design consistency in `ProfileModal.jsx`.
+- **Resolution:**
+  1. Verified backend routes: `GET /api/auth/me` returns safe user projection (no `password_hash`); `PUT /api/auth/me` extracts `req.user.id` strictly from authenticated JWT token, executes `validateProfileUpdate` middleware, validates cross-user email uniqueness via `User.emailTakenByOther`, and updates `name` and `email` using prepared statements.
+  2. Verified audit trail: Every profile change records `PROFILE_UPDATE` in the immutable `audit_log` with client IP and metadata (`previousEmail`, `newEmail`, `nameUpdated`).
+  3. Verified frontend integration: `ProfileModal.jsx` matches fintech theme tokens, providing accessible inputs, validation feedback, read-only immutable UUID display, role badge, and seamless state synchronization via `fintrack:auth-change` event.
+  4. Expanded test coverage: Added Suite 8 (15 new assertions) to `src/test/backend-test.js` (total 64 passing), added test check 12 to `src/test/e2e-verify.js` (total 12 passing), and ran dedicated `src/test/profile-test.js` (100% passing).
+  5. Verified frontend production build compiles 68 modules with 0 errors.
+
 ---
 
 ## 6. Testing, Security Verification & Deployment Record
 
 ### 6.1 Testing & Security Verification Strategy
-- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, duplicate prevention, password verification, audit logging, category/transaction/budget models, integer paise math, and complete IDOR isolation across multiple users (49 automated tests passing).
-- **Static Analysis & Linting:** Dependency review ensuring zero native build dependencies.
+- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, duplicate prevention, password verification, audit logging, category/transaction/budget models, integer paise math, complete IDOR isolation, and PS-01 user profile management (64/64 automated tests passing).
+- **Dedicated Profile Management Test Suite:** `src/test/profile-test.js` verifying safe profile viewing, name/email updates, duplicate email conflict detection, user-ownership isolation, refreshed JWT generation, and audit logging (100% passing).
+- **End-to-End Verification Suite:** Dedicated `src/test/e2e-verify.js` testing 12 core functional & security criteria (12/12 passing).
+- **Persistence Verification:** Automated persistence test in `src/test/persistence-verify.js` simulating process termination, connection teardown, and reopening to confirm permanent disk storage in `src/data/fintrack.db`.
+- **Static Analysis & Build Verification:** Frontend production build (`cmd.exe /c "npm run build"`) compiles 68 modules with 0 errors.
 
 ### 6.2 Deployment Verification
-- **Live Deployment Platform:** (To be configured — Render / Railway / Vercel)
-- **Deployment URL:** (Pending — will be recorded in `metadata/submission.yaml` and `deployment/README.md`)
+- **Live Deployment Platform:** Local Node.js / Express Container (Ready for Render / Railway / Vercel)
+- **Deployment URL:** `http://localhost:3000` (Frontend), `http://localhost:3001` (Backend)
 - **Health Check Endpoint:** `GET /api/health`
+
+

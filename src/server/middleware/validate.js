@@ -206,6 +206,37 @@ function validateBudgetUpdate(req, res, next) {
   next();
 }
 
+/**
+ * Validate user profile update input.
+ */
+function validateProfileUpdate(req, res, next) {
+  const { name, email } = req.body;
+  const errors = [];
+
+  if (name === undefined && email === undefined) {
+    return res.status(400).json({ error: 'At least one field (name or email) must be provided.' });
+  }
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || name.trim().length < 2) {
+      errors.push('Name must be at least 2 characters.');
+    } else if (name.trim().length > 100) {
+      errors.push('Name must not exceed 100 characters.');
+    }
+  }
+
+  if (email !== undefined) {
+    if (typeof email !== 'string' || !EMAIL_RE.test(email.trim())) {
+      errors.push('A valid email address is required.');
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ error: 'Validation failed.', details: errors });
+  }
+  next();
+}
+
 module.exports = {
   validateRegister,
   validateLogin,
@@ -215,4 +246,6 @@ module.exports = {
   validateTransactionUpdate,
   validateBudget,
   validateBudgetUpdate,
+  validateProfileUpdate,
 };
+

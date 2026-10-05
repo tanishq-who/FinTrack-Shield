@@ -73,6 +73,49 @@ router.get('/', (req, res) => {
 });
 
 /**
+ * GET /api/transactions/export
+ * Exports authenticated user's transactions as CSV or JSON.
+ * Query params: format ('csv' | 'json', default: 'csv')
+ */
+router.get('/export', (req, res) => {
+  try {
+    const { format = 'csv' } = req.query;
+    const { transactions } = Transaction.findAll(req.user.id, {
+      limit: 10000,
+      sortBy: 'date',
+      sortOrder: 'DESC',
+    });
+
+    if (format === 'json') {
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename="transactions.json"');
+      return res.json({ transactions });
+    }
+
+    // Default: CSV format
+    const headers = ['ID', 'Date', 'Type', 'Title', 'Amount_INR', 'Category', 'Notes'];
+    const rows = transactions.map((t) => [
+      t.id,
+      t.date,
+      t.type,
+      `"${(t.title || '').replace(/"/g, '""')}"`,
+      (t.amount / 100).toFixed(2),
+      `"${(t.category_name || 'Uncategorized').replace(/"/g, '""')}"`,
+      `"${(t.notes || '').replace(/"/g, '""')}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="fintrack-transactions.csv"');
+    res.status(200).send(csvContent);
+  } catch (err) {
+    console.error('Export error:', err.message);
+    res.status(500).json({ error: 'Failed to export transactions.' });
+  }
+});
+
+/**
  * GET /api/transactions/:id
  * Retrieve a specific transaction. Returns 404 if not found or unauthorized.
  */

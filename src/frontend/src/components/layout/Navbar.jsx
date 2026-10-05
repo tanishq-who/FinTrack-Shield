@@ -4,7 +4,11 @@ export const Navbar = ({
   activeRoute = 'dashboard',
   onToggleMobileNav,
   stateMode,
-  onChangeStateMode
+  onChangeStateMode,
+  user,
+  onLogout,
+  onOpenAuth,
+  onOpenProfile,
 }) => {
   const getPageTitle = (route) => {
     switch (route) {
@@ -80,6 +84,47 @@ export const Navbar = ({
           <span className="status-dot"></span>
           <span>Shield Active</span>
         </div>
+
+        {/* User Status / Quick Logout */}
+        {user ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
+            <button
+              type="button"
+              className="state-btn"
+              onClick={onOpenProfile}
+              title="Click to view & edit profile"
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                maxWidth: '140px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}
+            >
+              👤 {user.name || user.email}
+            </button>
+            <button
+              type="button"
+              className="state-btn"
+              onClick={onLogout}
+              title="Sign out of FinTrack Shield"
+              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+            >
+              Sign Out
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={onOpenAuth}
+            style={{ fontSize: '0.8rem', padding: '6px 12px', marginLeft: '6px' }}
+          >
+            Sign In
+          </button>
+        )}
       </div>
     </header>
   );

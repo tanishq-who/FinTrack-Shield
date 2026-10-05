@@ -99,6 +99,19 @@ export const TransactionsPage = () => {
     }
   };
 
+  // Export CSV Handler
+  const handleExportCsv = async () => {
+    try {
+      setActionInProgress(true);
+      await transactionService.exportCsv();
+      showToast('Transactions exported to CSV successfully.');
+    } catch (err) {
+      showToast(`Export failed: ${err.message}`);
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
   const isFilterActive =
     filters.search ||
     filters.type !== 'all' ||
@@ -124,21 +137,38 @@ export const TransactionsPage = () => {
             Track and manage your income and expenses with real-time audit verification.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            setEditingTransaction(null);
-            setIsModalOpen(true);
-          }}
-          aria-label="Add a new transaction"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          <span>Add Transaction</span>
-        </button>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleExportCsv}
+            disabled={actionInProgress || transactions.length === 0}
+            aria-label="Export transactions to CSV"
+            title="Download CSV export"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Export CSV</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setEditingTransaction(null);
+              setIsModalOpen(true);
+            }}
+            aria-label="Add a new transaction"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>Add Transaction</span>
+          </button>
+        </div>
       </section>
 
       {/* 2. Search and Filters Bar */}

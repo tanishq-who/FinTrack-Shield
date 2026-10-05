@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TRANSACTION_CATEGORIES } from '../../services/mockTransactionsData';
+import { categoryService } from '../../services/categoryService';
 
 export const TransactionFilters = ({
   filters,
@@ -8,6 +9,15 @@ export const TransactionFilters = ({
   totalCount,
   filteredCount
 }) => {
+  const [categories, setCategories] = useState(TRANSACTION_CATEGORIES);
+
+  useEffect(() => {
+    categoryService.getCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setCategories(cats.map((c) => c.name));
+      }
+    }).catch(() => {});
+  }, []);
   const isFiltered =
     filters.search ||
     filters.type !== 'all' ||
@@ -69,7 +79,7 @@ export const TransactionFilters = ({
             onChange={(e) => onChange('category', e.target.value)}
           >
             <option value="all">All Categories</option>
-            {TRANSACTION_CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>

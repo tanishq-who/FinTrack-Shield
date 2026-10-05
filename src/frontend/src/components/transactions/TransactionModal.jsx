@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TRANSACTION_CATEGORIES } from '../../services/mockTransactionsData';
+import { categoryService } from '../../services/categoryService';
 
 export const TransactionModal = ({
   isOpen,
@@ -8,6 +9,15 @@ export const TransactionModal = ({
   transactionToEdit = null
 }) => {
   const isEditing = Boolean(transactionToEdit);
+  const [availableCategories, setAvailableCategories] = useState(TRANSACTION_CATEGORIES);
+
+  useEffect(() => {
+    categoryService.getCategories().then((cats) => {
+      if (cats && cats.length > 0) {
+        setAvailableCategories(cats.map((c) => c.name));
+      }
+    }).catch(() => {});
+  }, [isOpen]);
 
   const [formData, setFormData] = useState({
     type: 'expense',
@@ -217,7 +227,7 @@ export const TransactionModal = ({
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 required
               >
-                {TRANSACTION_CATEGORIES.map((cat) => (
+                {availableCategories.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
