@@ -6,7 +6,7 @@ import { DeleteBudgetModal } from '../components/budgets/DeleteBudgetModal';
 import { budgetService } from '../services/budgetService';
 import { CURRENT_BUDGET_MONTH } from '../services/mockBudgetsData';
 
-export const BudgetsPage = () => {
+export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
   const [budgets, setBudgets] = useState([]);
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -121,7 +121,7 @@ export const BudgetsPage = () => {
       </section>
 
       {/* 2. States & Content */}
-      {loading ? (
+      {simulatedState === 'loading' || (loading && simulatedState === 'loaded') ? (
         <div aria-busy="true" aria-label="Loading budget data">
           {/* Skeleton Overview */}
           <div className="surface-card skeleton-card" style={{ height: '180px', marginBottom: '1.5rem' }}>
@@ -140,7 +140,7 @@ export const BudgetsPage = () => {
             ))}
           </div>
         </div>
-      ) : error ? (
+      ) : simulatedState === 'error' || error ? (
         <div className="surface-card state-container" role="alert">
           <div className="state-icon-box state-error-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -150,12 +150,12 @@ export const BudgetsPage = () => {
             </svg>
           </div>
           <h3 className="state-title">Unable to Load Budgets</h3>
-          <p className="state-description">{error}</p>
+          <p className="state-description">{error || 'Simulation error: Budget calculation engine timed out.'}</p>
           <button className="state-action-btn" onClick={loadBudgetData}>
             Retry
           </button>
         </div>
-      ) : budgets.length === 0 ? (
+      ) : simulatedState === 'empty' || budgets.length === 0 ? (
         <div className="surface-card state-container" role="status">
           <div className="state-icon-box state-empty-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
