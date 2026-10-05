@@ -60,6 +60,134 @@ const AuditLog = {
       'SELECT action, COUNT(*) AS count FROM audit_log GROUP BY action ORDER BY count DESC'
     ).all();
   },
+
+  /**
+   * Get exact security metric counts derived directly from audit_log table.
+   * - successful login count ('LOGIN_SUCCESS')
+   * - failed login count ('LOGIN_FAILED')
+   * - authorization-denied count ('AUTHORIZATION_DENIED')
+   * - rate-limit event count ('RATE_LIMITED')
+   * @returns {{ successfulLogins: number, failedLogins: number, authorizationDenied: number, rateLimited: number }}
+   */
+  getSecurityMetrics() {
+    const db = getDb();
+    const successfulLogins = db.prepare(
+      "SELECT COUNT(*) AS count FROM audit_log WHERE action = 'LOGIN_SUCCESS'"
+    ).get().count;
+    const failedLogins = db.prepare(
+      "SELECT COUNT(*) AS count FROM audit_log WHERE action = 'LOGIN_FAILED'"
+    ).get().count;
+    const authorizationDenied = db.prepare(
+      "SELECT COUNT(*) AS count FROM audit_log WHERE action = 'AUTHORIZATION_DENIED'"
+    ).get().count;
+    const rateLimited = db.prepare(
+      "SELECT COUNT(*) AS count FROM audit_log WHERE action = 'RATE_LIMITED'"
+    ).get().count;
+
+    return {
+      successfulLogins,
+      failedLogins,
+      authorizationDenied,
+      rateLimited,
+    };
+  },
+
+  /**
+   * Retrieve recent security-related activity directly from audit_log table.
+   * @param {number} limit
+   * @returns {object[]}
+   */
+  getRecentSecurityActivity(limit = 20) {
+    const db = getDb();
+    const rows = db.prepare(
+      `SELECT * FROM audit_log
+       WHERE action IN ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'AUTHORIZATION_DENIED', 'RATE_LIMITED', 'SIGNUP', 'LOGOUT', 'PROFILE_UPDATE')
+       ORDER BY timestamp DESC
+       LIMIT ?`
+    ).all(limit);
+
+    return rows.map((row) => ({
+      ...row,
+      metadata: typeof row.metadata === 'string' ? JSON.parse(row.metadata || '{}') : (row.metadata || {}),
+    }));
+  },
+
+  /**
+   * Compute suspicious activity strictly from real application audit events:
+   * - repeated failed logins from the same IP (threshold: >= 2 attempts)
+   * - rate-limited requests ('RATE_LIMITED')
+   * - authorization failures ('AUTHORIZATION_DENIED')
+   * @returns {object}
+   */
+  getSuspiciousActivity() {
+    const db = getDb();
+
+    // 1. Repeated failed logins grouped by IP (threshold: >= 2 attempts)
+    const repeatedFailedRows = db.prepare(
+      `SELECT ip, COUNT(*) AS count, MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen
+       FROM audit_log
+       WHERE action = 'LOGIN_FAILED' AND ip IS NOT NULL AND ip != ''
+       GROUP BY ip
+       HAVING count >= 2
+       ORDER BY count DESC`
+    ).all();
+
+    const repeatedFailedLogins = repeatedFailedRows.map((r) => ({
+      ip: r.ip,
+      count: r.count,
+      firstSeen: r.first_seen,
+      lastSeen: r.last_seen,
+      severity: r.count >= 5 ? 'CRITICAL' : r.count >= 3 ? 'HIGH' : 'MEDIUM',
+    }));
+
+    // 2. Rate-limited requests (latest 50 events)
+    const rateLimitedRows = db.prepare(
+      `SELECT * FROM audit_log
+       WHERE action = 'RATE_LIMITED'
+       ORDER BY timestamp DESC
+       LIMIT 50`
+    ).all();
+
+    const rateLimitedRequests = rateLimitedRows.map((r) => ({
+      ...r,
+      metadata: typeof r.metadata === 'string' ? JSON.parse(r.metadata || '{}') : (r.metadata || {}),
+    }));
+
+    // 3. Authorization failures (latest 50 events)
+    const authFailureRows = db.prepare(
+      `SELECT * FROM audit_log
+       WHERE action = 'AUTHORIZATION_DENIED'
+       ORDER BY timestamp DESC
+       LIMIT 50`
+    ).all();
+
+    const authorizationFailures = authFailureRows.map((r) => ({
+      ...r,
+      metadata: typeof r.metadata === 'string' ? JSON.parse(r.metadata || '{}') : (r.metadata || {}),
+    }));
+
+    const totalSuspiciousIncidents =
+      repeatedFailedLogins.length + rateLimitedRequests.length + authorizationFailures.length;
+
+    return {
+      repeatedFailedLogins,
+      rateLimitedRequests,
+      authorizationFailures,
+      totalSuspiciousIncidents,
+    };
+  },
+
+  /**
+   * Comprehensive security analysis payload for the admin dashboard.
+   * @returns {object}
+   */
+  getSecurityAnalysis() {
+    return {
+      metrics: this.getSecurityMetrics(),
+      recentActivity: this.getRecentSecurityActivity(25),
+      suspiciousActivity: this.getSuspiciousActivity(),
+    };
+  },
 };
 
 module.exports = AuditLog;

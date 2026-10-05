@@ -69,7 +69,8 @@ router.get('/audit-logs', (req, res) => {
 
 /**
  * GET /api/admin/stats
- * Summary statistics for administrative visibility.
+ * Summary statistics for administrative visibility and security analytics.
+ * Includes real counts and suspicious activity derived strictly from audit_log.
  */
 router.get('/stats', (req, res) => {
   try {
@@ -79,6 +80,7 @@ router.get('/stats', (req, res) => {
     const budgetCount = db.prepare('SELECT COUNT(*) AS count FROM budgets').get().count;
     const auditCount = db.prepare('SELECT COUNT(*) AS count FROM audit_log').get().count;
     const actionCounts = AuditLog.countByAction();
+    const securityAnalysis = AuditLog.getSecurityAnalysis();
 
     res.json({
       totalUsers: userCount,
@@ -86,10 +88,31 @@ router.get('/stats', (req, res) => {
       totalBudgets: budgetCount,
       totalAuditEvents: auditCount,
       eventsByAction: actionCounts,
+      securityMetrics: securityAnalysis.metrics,
+      recentSecurityActivity: securityAnalysis.recentActivity,
+      suspiciousActivity: securityAnalysis.suspiciousActivity,
     });
   } catch (err) {
     console.error('Admin stats error:', err.message);
     res.status(500).json({ error: 'Failed to retrieve system statistics.' });
+  }
+});
+
+/**
+ * GET /api/admin/security-analysis
+ * Dedicated real audit-log security analysis endpoint.
+ * Returns:
+ *   - metrics: successful logins, failed logins, authorization denials, rate limits
+ *   - recentActivity: latest security-related audit events
+ *   - suspiciousActivity: repeated failed logins by IP, rate limits, authorization failures
+ */
+router.get('/security-analysis', (req, res) => {
+  try {
+    const analysis = AuditLog.getSecurityAnalysis();
+    res.json(analysis);
+  } catch (err) {
+    console.error('Admin security analysis error:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve security analysis.' });
   }
 });
 

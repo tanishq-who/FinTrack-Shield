@@ -218,14 +218,23 @@ src/
   2. Verified audit trail: Every profile change records `PROFILE_UPDATE` in the immutable `audit_log` with client IP and metadata (`previousEmail`, `newEmail`, `nameUpdated`).
   3. Verified frontend integration: `ProfileModal.jsx` matches fintech theme tokens, providing accessible inputs, validation feedback, read-only immutable UUID display, role badge, and seamless state synchronization via `fintrack:auth-change` event.
   4. Expanded test coverage: Added Suite 8 (15 new assertions) to `src/test/backend-test.js` (total 64 passing), added test check 12 to `src/test/e2e-verify.js` (total 12 passing), and ran dedicated `src/test/profile-test.js` (100% passing).
-  5. Verified frontend production build compiles 68 modules with 0 errors.
+### [2026-10-05 20:00 IST] Entry 9: Security Analysis Dashboard & Real Audit-Log Analytics
+- **Focus:** Building the Security Analysis Dashboard backed 100% by real application audit-log data, with zero invented metrics or fake dashboard events.
+- **Key Challenges:** Safely logging `AUTHORIZATION_DENIED` events in the `requireRole` authorization middleware without exposing passwords, JWT tokens, Authorization headers, or sensitive request bodies; querying and grouping real suspicious activity (repeated failed logins from the same IP, rate-limited requests, authorization failures); strictly locking down both the frontend view and backend `/api/admin/*` endpoints to authenticated `ADMIN` users; preserving the existing UI design system.
+- **Resolution:**
+  1. Updated `requireRole` middleware in `src/server/middleware/auth.js` to extract client IP and record `AUTHORIZATION_DENIED` in `AuditLog` with safe contextual metadata (`endpoint`, `method`, `userRole`, `requiredRoles`), strictly omitting tokens, headers, and request bodies before returning HTTP 403.
+  2. Implemented `AuditLog.getSecurityMetrics()`, `AuditLog.getRecentSecurityActivity()`, and `AuditLog.getSuspiciousActivity()` in `src/server/models/AuditLog.js` querying exact database records from the `audit_log` table.
+  3. Added `GET /api/admin/security-analysis` and enriched `GET /api/admin/stats` in `src/server/routes/admin.js` protected by `requireAuth` and `requireRole('ADMIN')`.
+  4. Gated `AdminPage` in `src/frontend/src/App.jsx` with role validation (`user?.role === 'ADMIN'`), presenting a clean access restriction notice for standard `USER` accounts.
+  5. Enhanced `AdminPage.jsx` with 4 security KPI cards (Successful Logins, Failed Logins, Authorization Denied, Rate-Limit Events), a dedicated Suspicious Activity panel (repeated failed logins by IP, rate limits, authorization failures), and a live recent security events stream.
+  6. Added Suite 10 (29 assertions) to `src/test/backend-test.js` validating RBAC rejection of standard users, safe `AUTHORIZATION_DENIED` logging, metric fidelity against raw SQLite counts, repeated IP threat detection, rate-limit event tracking, and zero secret leakage (total 116 tests passing, 100% pass rate).
 
 ---
 
 ## 6. Testing, Security Verification & Deployment Record
 
 ### 6.1 Testing & Security Verification Strategy
-- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, duplicate prevention, password verification, audit logging, category/transaction/budget models, integer paise math, complete IDOR isolation, and PS-01 user profile management (64/64 automated tests passing).
+- **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, password verification, audit logging, category/transaction/budget models, integer paise math, complete IDOR isolation, PS-01 profile management, security hardening, rate limiting, and real-data Security Analysis Dashboard (116/116 automated tests passing).
 - **Dedicated Profile Management Test Suite:** `src/test/profile-test.js` verifying safe profile viewing, name/email updates, duplicate email conflict detection, user-ownership isolation, refreshed JWT generation, and audit logging (100% passing).
 - **End-to-End Verification Suite:** Dedicated `src/test/e2e-verify.js` testing 12 core functional & security criteria (12/12 passing).
 - **Persistence Verification:** Automated persistence test in `src/test/persistence-verify.js` simulating process termination, connection teardown, and reopening to confirm permanent disk storage in `src/data/fintrack.db`.
@@ -235,5 +244,6 @@ src/
 - **Live Deployment Platform:** Local Node.js / Express Container (Ready for Render / Railway / Vercel)
 - **Deployment URL:** `http://localhost:3000` (Frontend), `http://localhost:3001` (Backend)
 - **Health Check Endpoint:** `GET /api/health`
+
 
 

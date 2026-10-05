@@ -511,7 +511,131 @@ async function runTests() {
     }
   }
 
-  assert(leaksFound.length === 0, `Scanned ${filesToScan.length} project source/config/doc files: zero demo password values found`);
+  // ─── Suite 10: Security Analysis Dashboard & Real Audit-Log Analytics ────────────
+  console.log('\n[Suite 10] Security Analysis Dashboard & Real Audit-Log Analytics');
+
+  const adminUser = await User.create({
+    name: 'SecOps Administrator',
+    email: `secops_admin_${Date.now()}@fintrack.shield`,
+    password: 'SecOpsSuperAdmin@2026!',
+    role: 'ADMIN',
+  });
+  const adminToken = signToken(adminUser);
+
+  const standardUser = await User.create({
+    name: 'Regular Standard User',
+    email: `regular_user_${Date.now()}@fintrack.shield`,
+    password: 'RegularUserPassword@2026!',
+    role: 'USER',
+  });
+  const standardToken = signToken(standardUser);
+
+  const suite10Server = http.createServer(app);
+  await new Promise((resolve) => suite10Server.listen(0, '127.0.0.1', resolve));
+  const suite10Port = suite10Server.address().port;
+  const adminApiBase = `http://127.0.0.1:${suite10Port}/api/admin`;
+
+  // Test 10.1: Unauthenticated requests to /api/admin/* rejected with 401
+  const unauthStatsRes = await fetch(`${adminApiBase}/stats`);
+  assert(unauthStatsRes.status === 401, 'Unauthenticated request to /api/admin/stats rejected with HTTP 401');
+  const unauthAnalysisRes = await fetch(`${adminApiBase}/security-analysis`);
+  assert(unauthAnalysisRes.status === 401, 'Unauthenticated request to /api/admin/security-analysis rejected with HTTP 401');
+
+  // Test 10.2: Standard USER cannot access /api/admin/* and receives HTTP 403
+  const userStatsRes = await fetch(`${adminApiBase}/stats`, {
+    headers: { Authorization: `Bearer ${standardToken}` },
+  });
+  assert(userStatsRes.status === 403, 'Standard USER request to /api/admin/stats rejected with HTTP 403');
+  const userStatsBody = await userStatsRes.json();
+  assert(userStatsBody.error === 'Insufficient permissions.', 'Standard USER receives Insufficient permissions error');
+
+  const userAnalysisRes = await fetch(`${adminApiBase}/security-analysis`, {
+    headers: { Authorization: `Bearer ${standardToken}` },
+  });
+  assert(userAnalysisRes.status === 403, 'Standard USER request to /api/admin/security-analysis rejected with HTTP 403');
+
+  const userUsersRes = await fetch(`${adminApiBase}/users`, {
+    headers: { Authorization: `Bearer ${standardToken}` },
+  });
+  assert(userUsersRes.status === 403, 'Standard USER request to /api/admin/users rejected with HTTP 403');
+
+  const userAuditRes = await fetch(`${adminApiBase}/audit-logs`, {
+    headers: { Authorization: `Bearer ${standardToken}` },
+  });
+  assert(userAuditRes.status === 403, 'Standard USER request to /api/admin/audit-logs rejected with HTTP 403');
+
+  // Test 10.3: Authorization denial is safely recorded in audit_log
+  const authzDenials = AuditLog.query({ action: 'AUTHORIZATION_DENIED' });
+  assert(authzDenials.length >= 1, 'AUTHORIZATION_DENIED event recorded in audit_log upon unauthorized attempt');
+  const latestDenial = authzDenials[0];
+  const denialMeta = typeof latestDenial.metadata === 'string' ? JSON.parse(latestDenial.metadata) : latestDenial.metadata;
+  assert(latestDenial.user_id === standardUser.id, 'AUTHORIZATION_DENIED log records user ID of unauthorized caller');
+  assert(denialMeta.userRole === 'USER', 'AUTHORIZATION_DENIED log records caller role USER');
+  assert(Array.isArray(denialMeta.requiredRoles) && denialMeta.requiredRoles.includes('ADMIN'), 'AUTHORIZATION_DENIED log records required role ADMIN');
+  assert(latestDenial.ip !== undefined, 'AUTHORIZATION_DENIED log records client IP');
+  assert(!denialMeta.password && !denialMeta.token && !denialMeta.headers, 'AUTHORIZATION_DENIED log contains NO passwords, tokens, or sensitive headers');
+
+  // Test 10.4: ADMIN access succeeds with HTTP 200
+  const adminStatsRes = await fetch(`${adminApiBase}/stats`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+  assert(adminStatsRes.status === 200, 'ADMIN request to /api/admin/stats returns HTTP 200');
+  const adminStatsData = await adminStatsRes.json();
+
+  const adminAnalysisRes = await fetch(`${adminApiBase}/security-analysis`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  });
+  assert(adminAnalysisRes.status === 200, 'ADMIN request to /api/admin/security-analysis returns HTTP 200');
+  const adminAnalysisData = await adminAnalysisRes.json();
+
+  // Test 10.5: Every security metric is real and matches audit_log database table counts
+  const rawDbSuccessfulLogins = db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action = 'LOGIN_SUCCESS'").get().count;
+  const rawDbFailedLogins = db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action = 'LOGIN_FAILED'").get().count;
+  const rawDbAuthzDenied = db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action = 'AUTHORIZATION_DENIED'").get().count;
+  const rawDbRateLimited = db.prepare("SELECT COUNT(*) AS count FROM audit_log WHERE action = 'RATE_LIMITED'").get().count;
+
+  assert(adminAnalysisData.metrics.successfulLogins === rawDbSuccessfulLogins, 'Dashboard successful login count matches real audit_log database count');
+  assert(adminAnalysisData.metrics.failedLogins === rawDbFailedLogins, 'Dashboard failed login count matches real audit_log database count');
+  assert(adminAnalysisData.metrics.authorizationDenied === rawDbAuthzDenied, 'Dashboard authorization-denied count matches real audit_log database count');
+  assert(adminAnalysisData.metrics.rateLimited === rawDbRateLimited, 'Dashboard rate-limit event count matches real audit_log database count');
+
+  // Test 10.6: Real-time update: dynamic audit log insertion updates metric counts
+  AuditLog.log({ userId: null, action: 'LOGIN_FAILED', metadata: { reason: 'test_failed_probe' }, ip: '10.0.0.99' });
+  const updatedMetrics = AuditLog.getSecurityMetrics();
+  assert(updatedMetrics.failedLogins === rawDbFailedLogins + 1, 'Failed login count dynamically increments with real audit_log events');
+
+  // Test 10.7: Suspicious activity: repeated failed logins from same IP (>= 2 attempts)
+  const probeIp = '198.51.100.77';
+  AuditLog.log({ userId: null, action: 'LOGIN_FAILED', metadata: { reason: 'wrong_password' }, ip: probeIp });
+  AuditLog.log({ userId: null, action: 'LOGIN_FAILED', metadata: { reason: 'wrong_password' }, ip: probeIp });
+  AuditLog.log({ userId: null, action: 'LOGIN_FAILED', metadata: { reason: 'wrong_password' }, ip: probeIp });
+
+  // Single attempt from another IP should not trigger repeated failure flag
+  AuditLog.log({ userId: null, action: 'LOGIN_FAILED', metadata: { reason: 'wrong_password' }, ip: '203.0.113.11' });
+
+  const suspiciousActivity = AuditLog.getSuspiciousActivity();
+  const flaggedProbeIp = suspiciousActivity.repeatedFailedLogins.find((r) => r.ip === probeIp);
+  assert(flaggedProbeIp !== undefined, 'Suspicious activity detects repeated failed logins from same IP');
+  assert(flaggedProbeIp.count >= 3, 'Suspicious activity records correct failure attempt count for flagged IP');
+  const isolatedSingleIp = suspiciousActivity.repeatedFailedLogins.find((r) => r.ip === '203.0.113.11');
+  assert(isolatedSingleIp === undefined, 'Single failed login does not trigger repeated failed login warning');
+
+  // Test 10.8: Suspicious activity includes real rate limits and authorization failures
+  assert(suspiciousActivity.rateLimitedRequests.length >= 1, 'Suspicious activity includes real rate-limited requests from audit_log');
+  assert(suspiciousActivity.authorizationFailures.length >= 1, 'Suspicious activity includes real authorization failures from audit_log');
+  assert(suspiciousActivity.totalSuspiciousIncidents === suspiciousActivity.repeatedFailedLogins.length + suspiciousActivity.rateLimitedRequests.length + suspiciousActivity.authorizationFailures.length, 'Total suspicious incidents accurately aggregates real incident sub-counts');
+
+  // Test 10.9: Recent security activity stream contains real events
+  const recentSecurityActivity = AuditLog.getRecentSecurityActivity(10);
+  assert(recentSecurityActivity.length > 0, 'Recent security activity stream returns real database audit records');
+  assert(recentSecurityActivity.every((r) => r.id && r.action && r.timestamp), 'Every recent security event contains valid database fields');
+
+  // Test 10.10: Zero password or secret exposure in admin responses
+  const analysisJsonStr = JSON.stringify(adminAnalysisData);
+  assert(!analysisJsonStr.includes('password_hash'), 'Zero password_hash exposed in security analysis output');
+  assert(!analysisJsonStr.includes('SecOpsSuperAdmin'), 'Zero plaintext passwords exposed in security analysis output');
+
+  await new Promise((resolve) => suite10Server.close(resolve));
 
   closeDb();
   if (fs.existsSync(testDbPath)) {

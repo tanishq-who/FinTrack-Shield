@@ -1630,3 +1630,104 @@ Actions Taken:
 * Added Tests 9.4 and 9.5 (99 project files static scanner) to src/test/backend-test.js
 * Executed cmd.exe /c "npm run test:all" with 87/87 backend checks and 100% passing test suites
 * Executed cmd.exe /c "npm run build" in src/frontend (68 modules transformed, 0 errors)
+
+================================================================================
+[2026-10-05T19:56:00+05:30] Security Analysis Dashboard & Real Audit-Log Analytics
+================================================================================
+User Prompt (verbatim):
+Build the Security Analysis Dashboard using only real application audit-log data. Do not invent metrics, sample security events, or fake dashboard values.
+
+Enhance the existing ADMIN-only Security Center to show:
+
+- successful login count
+- failed login count
+- authorization-denied count
+- rate-limit event count
+- recent security activity
+- suspicious activity, defined only from real events:
+  - repeated failed logins from the same IP
+  - rate-limited requests
+  - authorization failures
+
+Requirements:
+- Every metric must come from the audit_log database table.
+- Record authorization-denied events safely in the existing authorization middleware.
+- Do not log passwords, JWTs, tokens, or sensitive request bodies.
+- Ensure standard USER accounts cannot access the page or `/api/admin/*`.
+- Preserve the current UI design.
+- Add automated tests proving the metrics are real and ADMIN-only.
+- Follow repository logging and commit rules.
+- Report files changed, test results, and commit SHA.
+
+Agent Response:
+Built the Security Analysis Dashboard backed 100% by real application audit-log data with zero invented metrics, mock security events, or fake dashboard values:
+
+1. Safe AUTHORIZATION_DENIED Audit Logging in Authorization Middleware:
+   - Updated `requireRole` in `src/server/middleware/auth.js` to extract client IP and record an immutable `AUTHORIZATION_DENIED` event in `audit_log` with contextual metadata (`endpoint`, `method`, `userRole`, `requiredRoles`).
+   - Strictly omitted sensitive request bodies, passwords, JWT tokens, and Authorization headers, guaranteeing complete privacy and zero credential leakage.
+   - Updated general rate limiter in `src/server/server.js` to log `RATE_LIMITED` audit events with client IP, timestamp, endpoint, and HTTP method.
+
+2. Real Audit-Log Analytics & Threat Detection Engine:
+   - Implemented `AuditLog.getSecurityMetrics()`, `AuditLog.getRecentSecurityActivity(limit)`, and `AuditLog.getSuspiciousActivity()` in `src/server/models/AuditLog.js` querying exact database records from `audit_log`:
+     * Successful login count: `SELECT COUNT(*) WHERE action = 'LOGIN_SUCCESS'`
+     * Failed login count: `SELECT COUNT(*) WHERE action = 'LOGIN_FAILED'`
+     * Authorization-denied count: `SELECT COUNT(*) WHERE action = 'AUTHORIZATION_DENIED'`
+     * Rate-limit event count: `SELECT COUNT(*) WHERE action = 'RATE_LIMITED'`
+   - Suspicious activity detection derived strictly from real events:
+     * Repeated failed logins from the same IP: grouped by client IP with threshold `HAVING count >= 2`, recording failure counts, risk severity, first observed timestamp, and last observed timestamp.
+     * Rate-limited requests: queries recent real `RATE_LIMITED` throttle records.
+     * Authorization failures: queries recent real `AUTHORIZATION_DENIED` rejection records.
+     * Total suspicious incidents: accurately aggregates real incident sub-counts.
+
+3. Privileged Admin API Endpoints:
+   - Added `GET /api/admin/security-analysis` and enriched `GET /api/admin/stats` in `src/server/routes/admin.js` to return `securityMetrics`, `recentSecurityActivity`, and `suspiciousActivity`.
+   - Both endpoints are strictly guarded by `requireAuth` and `requireRole('ADMIN')`. Standard `USER` accounts receive HTTP 403 and trigger `AUTHORIZATION_DENIED` logging; unauthenticated requests receive HTTP 401.
+
+4. Frontend Security Center Enhancement & Strict Access Gate:
+   - Gated the `admin` route in `src/frontend/src/App.jsx` so standard `USER` accounts are blocked with a clear "Administrator Privilege Required" notice and cannot view the page.
+   - Enhanced `src/frontend/src/pages/AdminPage.jsx` with:
+     * 4 primary Security KPI Cards (Successful Logins, Failed Logins, Authorization Denied, Rate-Limit Events) backed directly by `audit_log`.
+     * Suspicious Activity Panel with dedicated sub-views for Repeated Failed Logins by IP, Rate-Limited Requests, and Authorization Failures (displaying clean empty states when no incidents exist and never inventing mock rows).
+     * Recent Security Activity table streaming live audit logs.
+     * Tabbed view switcher preserving All Audit Trail and User Registry.
+     * Preserved existing dark/light visual tokens, layout, and component styling.
+
+5. Comprehensive Automated Test Verification:
+   - Added [Suite 10] Security Analysis Dashboard & Real Audit-Log Analytics (29 assertions) to `src/test/backend-test.js`.
+   - Verified that standard users are blocked with HTTP 403 and generate real `AUTHORIZATION_DENIED` audit events with safe metadata.
+   - Verified unauthenticated access returns HTTP 401 and admin access returns HTTP 200.
+   - Verified that all 4 security counts match raw SQLite database counts and increment dynamically with real events.
+   - Verified that repeated failed logins from the same IP are detected while isolated single attempts are not flagged.
+   - Verified that rate-limited requests and authorization failures populate suspicious activity accurately.
+   - Verified that zero plaintext passwords, password hashes, or JWT tokens are exposed.
+   - Executed full test suites: `backend-test.js` (116/116 PASSED), `e2e-verify.js` (12/12 PASSED), `profile-test.js` (8/8 PASSED), and persistence tests (100% PASSED). Frontend Vite production build compiled 68 modules with 0 errors.
+
+Agent Response Summary:
+Built the Security Analysis Dashboard backed purely by real SQLite audit_log data. Implemented safe AUTHORIZATION_DENIED audit logging in requireRole without sensitive data exposure, and enriched admin endpoints with real-time suspicious activity queries. Enforced strict ADMIN-only role gates across backend routes and frontend views, and added 29 automated tests in Suite 10 (116/116 passed).
+
+Commit SHA:
+aec4e87bd3ca9c5fea8b0985a5701804f7960d6e
+
+Files Modified / Created:
+* src/server/middleware/auth.js (Modified)
+* src/server/models/AuditLog.js (Modified)
+* src/server/routes/admin.js (Modified)
+* src/server/server.js (Modified)
+* src/frontend/src/App.jsx (Modified)
+* src/frontend/src/pages/AdminPage.jsx (Modified)
+* src/test/backend-test.js (Modified)
+* docs/APPROACH.md (Modified)
+* docs/logs.txt (Modified)
+
+Actions Taken:
+* Recorded AUTHORIZATION_DENIED in requireRole middleware without sensitive data exposure
+* Added getSecurityMetrics, getRecentSecurityActivity, and getSuspiciousActivity in AuditLog model
+* Added /api/admin/security-analysis and enriched /api/admin/stats in admin routes
+* Gated admin page in App.jsx for ADMIN role only
+* Built real-data Security Analysis Dashboard in AdminPage.jsx with 4 KPI cards and Suspicious Activity panels
+* Added Suite 10 (29 assertions) to src/test/backend-test.js (116 tests passing, 0 failed)
+* Executed cmd.exe /c "npm run test:all" with 100% passing tests
+* Executed cmd.exe /c "npm run build" in src/frontend (68 modules transformed, 0 errors)
+* Updated docs/APPROACH.md with Journal Entry 9 and docs/logs.txt
+
+

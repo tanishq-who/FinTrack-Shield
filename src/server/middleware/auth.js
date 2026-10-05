@@ -7,6 +7,8 @@
 
 const jwt = require('jsonwebtoken');
 const config = require('../config');
+const AuditLog = require('../models/AuditLog');
+const { getClientIp } = require('./audit');
 
 /**
  * Require a valid JWT in the Authorization header.
@@ -34,6 +36,7 @@ function requireAuth(req, res, next) {
 /**
  * Require the authenticated user to have one of the specified roles.
  * Must be used AFTER requireAuth.
+ * Safely records AUTHORIZATION_DENIED in the immutable audit log without sensitive data.
  * @param  {...string} roles - e.g. requireRole('ADMIN')
  */
 function requireRole(...roles) {
@@ -42,6 +45,22 @@ function requireRole(...roles) {
       return res.status(401).json({ error: 'Authentication required.' });
     }
     if (!roles.includes(req.user.role)) {
+      const ip = getClientIp(req);
+      try {
+        AuditLog.log({
+          userId: req.user.id || null,
+          action: 'AUTHORIZATION_DENIED',
+          metadata: {
+            endpoint: req.originalUrl || req.baseUrl + req.path,
+            method: req.method,
+            requiredRoles: roles,
+            userRole: req.user.role,
+          },
+          ip,
+        });
+      } catch (logErr) {
+        console.error('Failed to log authorization denial:', logErr.message);
+      }
       return res.status(403).json({ error: 'Insufficient permissions.' });
     }
     next();

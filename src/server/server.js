@@ -54,7 +54,27 @@ const limiter = rateLimit({
   max: config.rateLimit.max,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests. Please try again later.' },
+  handler: (req, res) => {
+    const { getClientIp } = require('./middleware/audit');
+    const AuditLog = require('./models/AuditLog');
+    const ip = getClientIp(req);
+    try {
+      AuditLog.log({
+        userId: req.user?.id || null,
+        action: 'RATE_LIMITED',
+        metadata: {
+          endpoint: req.originalUrl || req.path,
+          method: req.method,
+          ip,
+          timestamp: new Date().toISOString(),
+        },
+        ip,
+      });
+    } catch (logErr) {
+      console.error('Failed to log rate limit event:', logErr.message);
+    }
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  },
 });
 app.use('/api/', limiter);
 
