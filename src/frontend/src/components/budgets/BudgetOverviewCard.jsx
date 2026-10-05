@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatMonthDisplay } from '../../services/budgetService';
 
 /**
  * Budget Overview KPI Card
@@ -7,6 +8,7 @@ export const BudgetOverviewCard = ({ overview }) => {
   if (!overview) return null;
 
   const { totalBudget, totalSpent, remaining, overBudgetCount, percentageUsed, month } = overview;
+  const friendlyMonth = formatMonthDisplay(month);
 
   let progressColor = 'var(--color-emerald-500)';
   if (percentageUsed >= 100) {
@@ -19,8 +21,12 @@ export const BudgetOverviewCard = ({ overview }) => {
     <div className="surface-card budget-overview-card" role="region" aria-label="Monthly Budget Overview">
       <div className="budget-overview-header">
         <div>
-          <span className="budget-month-pill" aria-label={`Current budget cycle: ${month}`}>
-            📅 {month}
+          <span
+            className="budget-month-pill"
+            aria-label={`Current budget cycle: ${friendlyMonth} (${month})`}
+            data-month={month}
+          >
+            📅 {friendlyMonth}
           </span>
           <h2 className="budget-overview-title">Monthly Budget Allocation</h2>
         </div>

@@ -276,15 +276,42 @@ src/
 
 ---
 
+### [2026-10-05 22:55 IST] Entry 13: Budget Month YYYY-MM API Formatting & Navigation Fix
+- **Focus:** Resolving production deployment bug where the Budgets page failed with "Unable to Load Budgets" and "Month must be in YYYY-MM format."
+- **Root Cause Analysis:**
+  1. Backend routes (`GET /api/budgets`, `POST /api/budgets`) strictly validate the `month` parameter using regex `/^\d{4}-\d{2}$/` (e.g. `2026-10`).
+  2. The frontend previously passed a friendly display string (`'October 2026'`) from `mockBudgetsData.js` directly into `budgetService.getBudgets(...)` and `budgetService.getBudgetOverview(...)`, causing the backend to respond with HTTP 400 Bad Request.
+  3. Naive timezone/date formatting using `.toISOString().slice(0, 7)` risks off-by-one month shifts around midnight depending on UTC offset.
+- **Resolution:**
+  1. Implemented strict separation between machine/API format (`'YYYY-MM'`) and human-friendly display format (`'October 2026'`).
+  2. Added timezone-safe month helpers in `src/frontend/src/services/budgetService.js`:
+     - `getCurrentApiMonth()`: returns `YYYY-MM` using local Date (`getFullYear()`, `getMonth() + 1`).
+     - `toApiMonth(input)`: normalizes any representation (`'October 2026'`, `'Oct 2026'`, `Date`, or `'YYYY-MM'`) to strict `YYYY-MM`.
+     - `formatMonthDisplay(apiMonth)`: converts `YYYY-MM` to friendly user-facing label (e.g. `'October 2026'`) using safe mid-month day 15 and noon local time to completely prevent timezone boundary drift.
+     - `getAdjacentMonth(apiMonth, delta)`: safely calculates previous/next month across month and year boundaries.
+  3. Sanitized all API methods in `budgetService` (`getBudgets`, `getBudgetOverview`, `createBudget`) to always enforce `toApiMonth(month)`.
+  4. Updated `BudgetsPage.jsx` with:
+     - `selectedMonth` state stored in machine format `YYYY-MM`.
+     - UI display using `formatMonthDisplay(selectedMonth)`.
+     - Month navigation controls (Previous Month, Next Month, and Return to Current Month).
+     - Passed `selectedMonth` into `loadBudgetData` and `BudgetModal`.
+  5. Updated `BudgetModal.jsx` to display friendly month text while tracking and submitting strict `YYYY-MM` to the API.
+  6. Updated `BudgetOverviewCard.jsx` to render `formatMonthDisplay(month)`.
+  7. Created dedicated automated test suite `src/test/budget-month-test.js` (16/16 passing) and integrated `test:budget` into `npm run test:all` (251/251 passing across all 7 suites).
+  8. Verified production frontend build (`npm run build` in `src/frontend`) compiles 68 modules with 0 errors.
+
+---
+
 ## 6. Testing, Security Verification & Deployment Record
 
 ### 6.1 Testing & Security Verification Strategy
 - **Unit & Integration Tests:** Automated test suite in `src/test/backend-test.js` covering schema initialization, user registration, password verification, audit logging, category/transaction/budget models, integer paise math, complete IDOR isolation, PS-01 profile management, security hardening, rate limiting, real-data Security Analysis Dashboard, and production CORS verification (128/128 automated tests passing).
+- **Dedicated Budget Month Format Test Suite:** `src/test/budget-month-test.js` verifying date helpers, YYYY-MM normalization, timezone safety, friendly display formatting, month navigation, and live API endpoints (16/16 passing).
 - **Dedicated Production CORS Test Suite:** `src/test/cors-test.js` verifying OPTIONS preflight, credentialed GET/POST, trailing slash resilience, comma-separated origins, and unauthorized origin rejection (17/17 passing).
 - **Comprehensive 7-Dimension Security Verification Suite:** `src/test/security-final-verify.js` executing live HTTP requests verifying IDOR, SQLi prevention, XSS safety, login rate limiting, export scoping, RBAC, and security dashboard provenance (61/61 assertions passing).
 - **Dedicated Profile Management Test Suite:** `src/test/profile-test.js` verifying safe profile viewing, name/email updates, duplicate email conflict detection, user-ownership isolation, refreshed JWT generation, and audit logging (8/8 passing).
 - **End-to-End Verification Suite:** Dedicated `src/test/e2e-verify.js` testing 12 core functional & security criteria (12/12 passing).
-- **Persistence Verification:** Automated persistence test in `src/test/persistence-verify.js` simulating process termination, connection teardown, and reopening to confirm permanent disk storage in `src/data/fintrack.db` (passed).
+- **Persistence Verification:** Automated persistence test in `src/test/persistence-verify.js` simulating process termination, connection teardown, and reopening to confirm permanent disk storage in `src/data/fintrack.db` (9/9 passing).
 - **Static Analysis & Build Verification:** Frontend production build (`cmd.exe /c "npm run build"`) compiles 68 modules with 0 errors.
 
 ### 6.2 Deployment Verification

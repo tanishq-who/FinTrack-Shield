@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { AVAILABLE_BUDGET_CATEGORIES, CURRENT_BUDGET_MONTH } from '../../services/mockBudgetsData';
+import { AVAILABLE_BUDGET_CATEGORIES } from '../../services/mockBudgetsData';
 import { categoryService } from '../../services/categoryService';
+import {
+  getCurrentApiMonth,
+  toApiMonth,
+  formatMonthDisplay
+} from '../../services/budgetService';
 
 export const BudgetModal = ({
   isOpen,
   onClose,
   onSubmit,
-  budgetToEdit = null
+  budgetToEdit = null,
+  initialMonth = null
 }) => {
   const isEditing = Boolean(budgetToEdit);
   const [availableCategories, setAvailableCategories] = useState(AVAILABLE_BUDGET_CATEGORIES);
@@ -19,34 +25,41 @@ export const BudgetModal = ({
     }).catch(() => {});
   }, [isOpen]);
 
+  const defaultApiMonth = toApiMonth(budgetToEdit?.month || initialMonth || getCurrentApiMonth());
+
   const [formData, setFormData] = useState({
     category: 'Food & Dining',
     limit: '',
-    month: CURRENT_BUDGET_MONTH,
+    month: defaultApiMonth,
     color: '#10b981'
   });
 
+  const [monthInput, setMonthInput] = useState(formatMonthDisplay(defaultApiMonth));
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (budgetToEdit) {
+      const m = toApiMonth(budgetToEdit.month || initialMonth || getCurrentApiMonth());
       setFormData({
         category: budgetToEdit.category || 'Food & Dining',
         limit: budgetToEdit.limit !== undefined ? budgetToEdit.limit.toString() : '',
-        month: budgetToEdit.month || CURRENT_BUDGET_MONTH,
+        month: m,
         color: budgetToEdit.color || '#10b981'
       });
+      setMonthInput(formatMonthDisplay(m));
     } else {
+      const m = toApiMonth(initialMonth || getCurrentApiMonth());
       setFormData({
         category: 'Food & Dining',
         limit: '',
-        month: CURRENT_BUDGET_MONTH,
+        month: m,
         color: '#10b981'
       });
+      setMonthInput(formatMonthDisplay(m));
     }
     setErrors({});
-  }, [budgetToEdit, isOpen]);
+  }, [budgetToEdit, isOpen, initialMonth]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -59,6 +72,13 @@ export const BudgetModal = ({
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
+
+  const handleMonthChange = (e) => {
+    const val = e.target.value;
+    setMonthInput(val);
+    const parsed = toApiMonth(val);
+    setFormData((prev) => ({ ...prev, month: parsed }));
+  };
 
   const validate = () => {
     const errs = {};
@@ -76,8 +96,13 @@ export const BudgetModal = ({
       }
     }
 
-    if (!formData.month || !formData.month.trim()) {
+    if (!monthInput || !monthInput.trim()) {
       errs.month = 'Budget month cycle is required.';
+    } else {
+      const parsed = toApiMonth(monthInput);
+      if (!/^\d{4}-\d{2}$/.test(parsed)) {
+        errs.month = 'Invalid month. Use YYYY-MM (e.g. 2026-10) or Month YYYY (e.g. October 2026).';
+      }
     }
 
     setErrors(errs);
@@ -90,8 +115,10 @@ export const BudgetModal = ({
 
     setSubmitting(true);
     try {
+      const finalApiMonth = toApiMonth(formData.month || monthInput);
       await onSubmit({
         ...formData,
+        month: finalApiMonth,
         limit: parseFloat(formData.limit)
       });
       onClose();
@@ -183,11 +210,14 @@ export const BudgetModal = ({
                 id="budget-month"
                 type="text"
                 className={`form-input ${errors.month ? 'input-error' : ''}`}
-                placeholder="e.g. October 2026"
-                value={formData.month}
-                onChange={(e) => setFormData({ ...formData, month: e.target.value })}
+                placeholder="e.g. October 2026 or 2026-10"
+                value={monthInput}
+                onChange={handleMonthChange}
                 required
               />
+              <span className="field-hint" style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', display: 'block', marginTop: '3px' }}>
+                API Month: <strong className="tabular-nums" style={{ color: 'var(--color-emerald-500)' }}>{toApiMonth(formData.month || monthInput)}</strong>
+              </span>
               {errors.month && <span className="field-error-text">{errors.month}</span>}
             </div>
           </div>

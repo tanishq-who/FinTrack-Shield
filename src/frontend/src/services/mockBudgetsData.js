@@ -3,7 +3,9 @@
  * Mirrors future backend database models.
  */
 
-export const CURRENT_BUDGET_MONTH = 'October 2026';
+export const CURRENT_BUDGET_API_MONTH = '2026-10';
+export const CURRENT_BUDGET_DISPLAY_MONTH = 'October 2026';
+export const CURRENT_BUDGET_MONTH = '2026-10';
 
 export const INITIAL_BUDGETS = [
   {
@@ -11,7 +13,7 @@ export const INITIAL_BUDGETS = [
     category: 'Housing & Rent',
     limit: 1500.00,
     spent: 1500.00,
-    month: 'October 2026',
+    month: '2026-10',
     color: '#0d9488'
   },
   {
@@ -19,7 +21,7 @@ export const INITIAL_BUDGETS = [
     category: 'Food & Dining',
     limit: 800.00,
     spent: 780.50,
-    month: 'October 2026',
+    month: '2026-10',
     color: '#10b981'
   },
   {
@@ -27,7 +29,7 @@ export const INITIAL_BUDGETS = [
     category: 'Utilities & Tech',
     limit: 500.00,
     spent: 480.00,
-    month: 'October 2026',
+    month: '2026-10',
     color: '#3b82f6'
   },
   {
@@ -35,7 +37,7 @@ export const INITIAL_BUDGETS = [
     category: 'Transportation',
     limit: 350.00,
     spent: 390.25, // Overspent!
-    month: 'October 2026',
+    month: '2026-10',
     color: '#f59e0b'
   },
   {
@@ -43,7 +45,7 @@ export const INITIAL_BUDGETS = [
     category: 'Entertainment',
     limit: 300.00,
     spent: 175.00,
-    month: 'October 2026',
+    month: '2026-10',
     color: '#8b5cf6'
   },
   {
@@ -51,7 +53,7 @@ export const INITIAL_BUDGETS = [
     category: 'Healthcare',
     limit: 250.00,
     spent: 110.00,
-    month: 'October 2026',
+    month: '2026-10',
     color: '#ec4899'
   },
   {
@@ -59,7 +61,7 @@ export const INITIAL_BUDGETS = [
     category: 'Shopping',
     limit: 250.00,
     spent: 85.00,
-    month: 'October 2026',
+    month: '2026-10',
     color: '#06b6d4'
   }
 ];

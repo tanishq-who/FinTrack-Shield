@@ -3,10 +3,16 @@ import { BudgetOverviewCard } from '../components/budgets/BudgetOverviewCard';
 import { BudgetCard } from '../components/budgets/BudgetCard';
 import { BudgetModal } from '../components/budgets/BudgetModal';
 import { DeleteBudgetModal } from '../components/budgets/DeleteBudgetModal';
-import { budgetService } from '../services/budgetService';
-import { CURRENT_BUDGET_MONTH } from '../services/mockBudgetsData';
+import {
+  budgetService,
+  getCurrentApiMonth,
+  toApiMonth,
+  formatMonthDisplay,
+  getAdjacentMonth
+} from '../services/budgetService';
 
 export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
+  const [selectedMonth, setSelectedMonth] = useState(() => getCurrentApiMonth());
   const [budgets, setBudgets] = useState([]);
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,13 +30,26 @@ export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const loadBudgetData = useCallback(async () => {
+  const handlePrevMonth = () => {
+    setSelectedMonth((prev) => getAdjacentMonth(prev, -1));
+  };
+
+  const handleNextMonth = () => {
+    setSelectedMonth((prev) => getAdjacentMonth(prev, 1));
+  };
+
+  const handleCurrentMonth = () => {
+    setSelectedMonth(getCurrentApiMonth());
+  };
+
+  const loadBudgetData = useCallback(async (monthToLoad = selectedMonth) => {
     setLoading(true);
     setError(null);
     try {
+      const apiMonth = toApiMonth(monthToLoad);
       const [budgetsData, overviewData] = await Promise.all([
-        budgetService.getBudgets(CURRENT_BUDGET_MONTH),
-        budgetService.getBudgetOverview(CURRENT_BUDGET_MONTH)
+        budgetService.getBudgets(apiMonth),
+        budgetService.getBudgetOverview(apiMonth)
       ]);
       setBudgets(budgetsData);
       setOverview(overviewData);
@@ -39,25 +58,29 @@ export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedMonth]);
 
   useEffect(() => {
-    loadBudgetData();
-  }, [loadBudgetData]);
+    loadBudgetData(selectedMonth);
+  }, [selectedMonth, loadBudgetData]);
 
   const handleSaveBudget = async (formData) => {
     setActionInProgress(true);
     try {
+      const budgetData = {
+        ...formData,
+        month: toApiMonth(formData.month || selectedMonth),
+      };
       if (editingBudget) {
-        await budgetService.updateBudget(editingBudget.id, formData);
+        await budgetService.updateBudget(editingBudget.id, budgetData);
         showToast(`Budget for "${formData.category}" updated successfully.`);
       } else {
-        await budgetService.createBudget(formData);
+        await budgetService.createBudget(budgetData);
         showToast(`Budget for "${formData.category}" created.`);
       }
       setIsModalOpen(false);
       setEditingBudget(null);
-      await loadBudgetData();
+      await loadBudgetData(selectedMonth);
     } catch (err) {
       throw err;
     } finally {
@@ -71,7 +94,7 @@ export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
       await budgetService.deleteBudget(id);
       showToast('Budget category deleted successfully.');
       setDeletingBudget(null);
-      await loadBudgetData();
+      await loadBudgetData(selectedMonth);
     } catch (err) {
       showToast(`Error deleting budget: ${err.message}`);
     } finally {
@@ -92,11 +115,55 @@ export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
       {/* 1. Page Header */}
       <section className="page-header-row">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <h1 className="page-title">Budgets</h1>
-            <span className="current-month-badge" aria-label={`Current month: ${CURRENT_BUDGET_MONTH}`}>
-              {CURRENT_BUDGET_MONTH}
-            </span>
+            <div className="budget-month-nav" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                type="button"
+                className="action-icon-btn"
+                onClick={handlePrevMonth}
+                title="Previous Month"
+                aria-label="Previous Month"
+                style={{ width: '28px', height: '28px', borderRadius: 'var(--radius-full)' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+
+              <span
+                className="current-month-badge"
+                aria-label={`Current month: ${formatMonthDisplay(selectedMonth)} (API: ${selectedMonth})`}
+                data-month={selectedMonth}
+              >
+                {formatMonthDisplay(selectedMonth)}
+              </span>
+
+              <button
+                type="button"
+                className="action-icon-btn"
+                onClick={handleNextMonth}
+                title="Next Month"
+                aria-label="Next Month"
+                style={{ width: '28px', height: '28px', borderRadius: 'var(--radius-full)' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              {selectedMonth !== getCurrentApiMonth() && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCurrentMonth}
+                  style={{ fontSize: '0.72rem', padding: '2px 8px', height: '26px' }}
+                  title="Return to Current Month"
+                >
+                  Current
+                </button>
+              )}
+            </div>
           </div>
           <p className="page-description">
             Plan, allocate, and monitor your monthly spending thresholds across categories.
@@ -151,7 +218,7 @@ export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
           </div>
           <h3 className="state-title">Unable to Load Budgets</h3>
           <p className="state-description">{error || 'Simulation error: Budget calculation engine timed out.'}</p>
-          <button className="state-action-btn" onClick={loadBudgetData}>
+          <button className="state-action-btn" onClick={() => loadBudgetData(selectedMonth)}>
             Retry
           </button>
         </div>
@@ -165,7 +232,7 @@ export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
           </div>
           <h3 className="state-title">No Budget Allocations Found</h3>
           <p className="state-description">
-            You haven't set up any category budgets for {CURRENT_BUDGET_MONTH}. Create your first budget limit to begin proactive spending tracking.
+            You haven't set up any category budgets for {formatMonthDisplay(selectedMonth)}. Create your first budget limit to begin proactive spending tracking.
           </p>
           <button
             className="state-action-btn"
@@ -227,6 +294,7 @@ export const BudgetsPage = ({ simulatedState = 'loaded', onNavigate }) => {
         }}
         onSubmit={handleSaveBudget}
         budgetToEdit={editingBudget}
+        initialMonth={selectedMonth}
       />
 
       {/* Delete Confirmation Modal */}
