@@ -254,3 +254,60 @@ AGREEMENT RECORDED: c:\Users\yagna\OneDrive\Desktop\BuildSecure
 Agent: Antigravity
 System Time: 2026-10-05T12:33:15+05:30
 Deadline: 2026-10-06T11:00:00+05:30
+
+================================================================================
+[2026-10-05T13:54:07+05:30] ONBOARDING COMPLETE
+================================================================================
+AGREEMENT RECORDED: c:\Users\vaibh\OneDrive\Desktop\BuildSecure
+Agent: Antigravity
+System Time: 2026-10-05T13:54:07+05:30
+Deadline: 2026-10-06T11:00:00+05:30
+
+================================================================================
+[2026-10-05T14:21:28+05:30] Connect Frontend Vite App to Real Secure Backend APIs
+================================================================================
+User Prompt (verbatim):
+Continue FinTrack Shield from the current merged codebase.
+
+First read AGENTS.md, docs/APPROACH.md, and docs/logs.txt. Inspect the current architecture carefully:
+- backend files are in src/
+- frontend Vite app is in src/frontend/
+- frontend currently uses mock data services
+
+Do not redesign the existing frontend. Your task is to connect it safely to the real backend APIs.
+
+Implement integration for:
+
+1. Authentication
+- connect login/register/logout frontend flows to backend
+- preserve secure token/session handling already implemented
+- redirect unauthenticated users away from protected pages
+- show useful validation and login-error messages
+- add a simple profile/logout area
+
+2. Transactions
+- replace mock transaction service with real API calls
+- connect create, edit, delete, search, filters, pagination, and transaction history
+- refresh dashboard data after transaction changes
+
+3. Budgets
+- replace mock budget service with real API calls
+- connect create, edit, delete, progress, remaining amount, and overspending state
+
+4. Dashboard and insights
+- replace mock dashboard data with the authenticated dashboard-summary API
+- use real category spending and income-vs-expense chart data
+- show safe loading, empty, and error states
+- do not expose another user’s data under any circumstance
+
+5. Engineering
+- configure frontend API base URL through environment variables only
+- never include secrets in frontend code
+- preserve the existing UI design
+- update docs/APPROACH.md and docs/logs.txt
+- run backend and frontend builds/tests; fix all errors
+
+Do not commit. At the end, explain exactly how to start the backend and frontend locally, list any required environment variables, and give me the commit message I should use.
+
+Agent Response:
+(In progress: connecting frontend Vite app to real secure backend APIs)
