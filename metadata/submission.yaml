@@ -8,7 +8,7 @@ submission:
   problem_statement: "PS-01 Personal Finance"
   project_name: "FinTrack Shield"
   repository: "https://github.com/tanishq-who/FinTrack-Shield.git"
-  commit_sha: "91c060843db07146238c6209a58f5fc3a1c29c4b"
+  commit_sha: "84d683a9149ca3f6c59977cfcf90e6a5643bb175"
   deployment_url: "https://fin-track-shield.vercel.app"
   health_url: "https://fintrack-shield-production.up.railway.app/api/health"
   submitted_at: "2026-10-05T15:50:00+05:30"
