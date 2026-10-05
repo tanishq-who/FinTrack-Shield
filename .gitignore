@@ -1,0 +1,16 @@
+# Node dependencies & build artifacts
+node_modules/
+dist/
+dist-ssr/
+*.log
+
+# Environment secrets
+.env
+.env.local
+.env.*.local
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

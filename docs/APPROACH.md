@@ -34,7 +34,7 @@
 ### 2.3 Technology Stack Rationale
 *Explain the tools selected and why alternatives were rejected:*
 - **Backend / API Framework:** (e.g., FastAPI, Express, Go Gin) — *Why chosen:*
-- **Frontend / Client:** (e.g., React, Next.js, HTML/JS) — *Why chosen:*
+- **Frontend / Client:** React 18 + Vite (SPA with pure SVG charts, decoupled service layer, dark navy & white surface fintech theme, WCAG AA compliance) — *Why chosen: Fast bundling, component modularity, zero heavy chart dependencies, decoupled data service layer allowing seamless backend endpoint integration.*
 - **Database & Persistence:** (e.g., PostgreSQL, SQLite, Redis) — *Why chosen:*
 - **Authentication & Cryptography:** (e.g., Bcrypt/Argon2, PyJWT) — *Why chosen:*
 
@@ -52,7 +52,7 @@
 
 | Milestone / Phase | Time Window | Key Objectives & Deliverables | Security Verification | Status |
 |---|---|---|---|---|
-| **Phase 1: Foundation & Setup** | 0h – 4h | Contract onboarding, repo setup, baseline data schemas | Secret scan & baseline check | `Planned` |
+| **Phase 1: Foundation & Setup** | 0h – 4h | Contract onboarding, repo setup, frontend scaffold & dashboard UI | Production build check passed | `In Progress` |
 | **Phase 2: Core Domain & Auth** | 4h – 12h | Core business logic, secure authentication & authorization | Auth test suite & crypto validation | `Planned` |
 | **Phase 3: Security & Hardening**| 12h – 18h | Input validation, rate limiting, error handling, security middleware | SAST scanning & edge case tests | `Planned` |
 | **Phase 4: Polish & Deployment**| 18h – 24h | UI polish, live cloud deployment, final docs & commit freeze | Live deployment URL check | `Planned` |
