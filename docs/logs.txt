@@ -1853,7 +1853,7 @@ Agent Response Summary:
 Configured and verified FinTrack Shield for real public deployment with Vercel frontend static hosting and Railway/Render persistent volume backend. Updated config.js to support absolute volume mounts via DB_PATH, added vercel.json SPA rewrites, updated deployment/README.md with full setup guides and environment variable reference, updated submission metadata with URL placeholders, and verified health check and zero regression across all test suites.
 
 Commit SHA:
-34e8792d46de2b10b27c1351976b869892a0442f
+91c060843db07146238c6209a58f5fc3a1c29c4b
 
 Files Modified / Created:
 * src/server/config.js (Modified)
