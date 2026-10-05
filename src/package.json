@@ -9,9 +9,10 @@
     "seed": "node server/db/seed.js",
     "test": "node test/backend-test.js",
     "test:profile": "node test/profile-test.js",
+    "test:security": "node test/security-final-verify.js",
     "test:e2e": "node test/e2e-verify.js",
     "test:persistence": "node test/persistence-verify.js",
-    "test:all": "node test/backend-test.js && node test/e2e-verify.js && node test/profile-test.js && node test/persistence-verify.js",
+    "test:all": "node test/backend-test.js && node test/security-final-verify.js && node test/e2e-verify.js && node test/profile-test.js && node test/persistence-verify.js",
     "lint": "echo 'No linter configured yet'"
   },
   "keywords": ["finance", "security", "hackathon"],
