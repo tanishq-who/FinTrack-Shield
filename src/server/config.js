@@ -51,13 +51,15 @@ const config = {
 
   db: {
     path: process.env.DB_PATH
-      ? path.resolve(__dirname, '..', process.env.DB_PATH)
+      ? (path.isAbsolute(process.env.DB_PATH)
+          ? path.normalize(process.env.DB_PATH)
+          : path.resolve(__dirname, '..', process.env.DB_PATH))
       : path.join(__dirname, '..', 'data', 'fintrack.db'),
   },
 
   cors: {
     origin: process.env.CORS_ORIGIN
-      ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
+      ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean)
       : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173', 'http://127.0.0.1:3000'],
   },
 

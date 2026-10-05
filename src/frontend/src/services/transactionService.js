@@ -176,7 +176,7 @@ export const transactionService = {
    * Export authenticated user transactions to CSV file
    */
   async exportCsv() {
-    const token = localStorage.getItem('fintrack_auth_token');
+    const token = apiClient.getToken() || localStorage.getItem('fintrack_auth_token');
     const res = await fetch(`${apiClient.baseUrl}/transactions/export?format=csv`, {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

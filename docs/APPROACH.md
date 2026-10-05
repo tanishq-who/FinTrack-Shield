@@ -242,6 +242,16 @@ src/
   - Added `npm run test:security` script to `src/package.json` and integrated into `test:all`.
   - Executed all 5 backend test suites (100% passing across all 197 total test assertions) and frontend production build (0 errors).
 
+### [2026-10-05 20:20 IST] Entry 11: Production Deployment Architecture & Verification
+- **Focus:** Preparing FinTrack Shield for real public production deployment without automated deployment: Vercel static hosting for the React/Vite frontend, Railway/Render for the Node.js backend, and a persistent platform disk volume for SQLite (`/data/fintrack.db`).
+- **Key Technical Decisions:**
+  1. *Database Path (`DB_PATH`):* Enhanced `src/server/config.js` to dynamically support both absolute container volume paths (e.g. `/data/fintrack.db` on Linux container mounts) and relative local development paths via `path.isAbsolute(process.env.DB_PATH)`.
+  2. *Production Security (`JWT_SECRET`):* Enforced strict validation preventing server startup in `NODE_ENV=production` if `JWT_SECRET` is missing, shorter than 32 characters, or contains default placeholders.
+  3. *CORS Configuration (`CORS_ORIGIN`):* Normalized origin string splitting and stripped trailing slashes (`.replace(/\/+$/, '')`) to ensure the deployed Vercel frontend URL is matched reliably.
+  4. *Frontend SPA Routing & API Base URL:* Added `src/frontend/vercel.json` with single-page application URL rewrites (`/(.*)` -> `/index.html`), normalized `VITE_API_URL` trailing slashes in `apiClient.js`, and added `baseUrl` property for uniform endpoint construction.
+  5. *Health Check (`GET /api/health`):* Confirmed live health check endpoint returning HTTP 200 with service status, uptime, and SQLite database connectivity status.
+  6. *Documentation & Submission:* Authored complete step-by-step manual deployment instructions in `deployment/README.md` for Railway, Render, and Vercel, and configured URL placeholders in `metadata/submission.yaml`.
+
 ---
 
 ## 6. Testing, Security Verification & Deployment Record
@@ -255,9 +265,12 @@ src/
 - **Static Analysis & Build Verification:** Frontend production build (`cmd.exe /c "npm run build"`) compiles 68 modules with 0 errors.
 
 ### 6.2 Deployment Verification
-- **Live Deployment Platform:** Local Node.js / Express Container (Ready for Render / Railway / Vercel)
-- **Deployment URL:** `http://localhost:3000` (Frontend), `http://localhost:3001` (Backend)
-- **Health Check Endpoint:** `GET /api/health`
+- **Production Deployment Target:** Vercel (Frontend static SPA) + Railway / Render (Backend Express REST API)
+- **Database Engine:** Node 24 native `node:sqlite` (DatabaseSync) on persistent platform volume (`/data/fintrack.db` via `DB_PATH`)
+- **Health Check Endpoint:** `GET /api/health` (HTTP 200, checks DB connection)
+- **Deployment Guide:** Complete step-by-step instructions in `deployment/README.md`
+- **Submission Metadata:** Recorded with placeholders in `metadata/submission.yaml`
+
 
 
 

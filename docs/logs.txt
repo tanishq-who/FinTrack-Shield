@@ -1807,6 +1807,77 @@ Actions Taken:
 * Executed cmd.exe /c "npm run build" in src/frontend: 68 modules transformed, 0 errors
 * Updated docs/APPROACH.md with Journal Entry 10 and docs/logs.txt
 
+================================================================================
+[2026-10-05T20:13:40+05:30] Prepare FinTrack Shield for Real Public Deployment
+================================================================================
+User Prompt (verbatim):
+Prepare FinTrack Shield for real public deployment. Do not deploy automatically; only create and verify the necessary configuration and documentation.
+
+Use this deployment architecture:
+- Frontend: Vercel static deployment from src/frontend
+- Backend: Railway or Render Node.js service
+- Database: persistent SQLite file mounted on the backend platform volume
+
+Requirements:
+1. Keep the existing React/Vite frontend and Express backend architecture.
+2. Ensure the backend database path is configurable only through DB_PATH.
+3. Document a persistent production SQLite path such as /data/fintrack.db.
+4. Ensure JWT_SECRET is required in production and never committed.
+5. Ensure CORS_ORIGIN supports the deployed Vercel frontend URL.
+6. Ensure VITE_API_URL is documented as a Vercel build-time environment variable pointing to the deployed backend /api URL.
+7. Confirm /api/health works as the deployment health check.
+8. Update deployment/README.md with exact Railway/Render and Vercel setup steps, environment variables, build commands, and verification steps.
+9. Update metadata/submission.yaml with placeholders for the future live URLs only; do not invent URLs.
+10. Follow repository logging and commit rules.
+
+Return:
+- deployment files changed
+- commit SHA
+- exact environment variables needed for backend and frontend
+- exact manual deployment steps I should perform next
+
+Agent Response:
+I have prepared FinTrack Shield for real public production deployment adhering to all specified architectural constraints and requirements:
+1. Architecture preserved: Kept the existing React 18 / Vite frontend and Node.js / Express backend architecture.
+2. Database path configurable only via DB_PATH: Updated `src/server/config.js` so that `config.db.path` handles absolute paths (`path.isAbsolute(process.env.DB_PATH)`) directly, enabling container volume mounts like `/data/fintrack.db` while preserving the default fallback for local dev.
+3. Persistent SQLite documented: Documented volume mounting at `/data` with database path `/data/fintrack.db` for both Railway and Render in `deployment/README.md`.
+4. Production JWT_SECRET requirement: Verified that `validateConfig` halts server startup in `NODE_ENV=production` if `JWT_SECRET` is missing, shorter than 32 characters, or contains default placeholders.
+5. CORS_ORIGIN supports Vercel: Updated `src/server/config.js` to strip trailing slashes (`replace(/\/+$/, '')`) from comma-separated origins so deployed Vercel origins match reliably.
+6. VITE_API_URL build-time configuration: Updated `apiClient.js` to normalize `VITE_API_URL`, added `baseUrl` property, and documented `VITE_API_URL` pointing to `<backend-url>/api` for Vercel builds.
+7. Health check confirmation: Verified `GET /api/health` returns HTTP 200 with `{ status: "healthy", database: "connected" }`.
+8. Complete deployment documentation: Updated `deployment/README.md` with step-by-step setup guides for Railway, Render, and Vercel, exact environment variables tables, persistent volume mounting instructions, and post-deployment smoke tests.
+9. Submission metadata: Updated `metadata/submission.yaml` with clean placeholders for live URLs without inventing fake domains.
+10. Verification: Executed full test suite `npm run test:all` (197/197 passing across 5 suites) and `npm run build` in `src/frontend` (68 modules transformed, 0 errors).
+
+Agent Response Summary:
+Configured and verified FinTrack Shield for real public deployment with Vercel frontend static hosting and Railway/Render persistent volume backend. Updated config.js to support absolute volume mounts via DB_PATH, added vercel.json SPA rewrites, updated deployment/README.md with full setup guides and environment variable reference, updated submission metadata with URL placeholders, and verified health check and zero regression across all test suites.
+
+Commit SHA:
+34e8792d46de2b10b27c1351976b869892a0442f
+
+Files Modified / Created:
+* src/server/config.js (Modified)
+* src/frontend/vercel.json (Created)
+* src/frontend/src/services/apiClient.js (Modified)
+* src/frontend/src/services/transactionService.js (Modified)
+* deployment/README.md (Modified)
+* metadata/submission.yaml (Modified)
+* docs/APPROACH.md (Modified)
+* docs/logs.txt (Modified)
+
+Actions Taken:
+* Updated src/server/config.js for absolute DB_PATH and normalized CORS_ORIGIN
+* Created src/frontend/vercel.json with SPA rewrites
+* Updated src/frontend/src/services/apiClient.js and transactionService.js for robust API URL handling
+* Verified GET /api/health returns HTTP 200 and database connected
+* Verified production JWT_SECRET validation halts startup on missing or weak secrets
+* Executed cmd.exe /c "npm run build" in src/frontend (0 errors, 68 modules transformed)
+* Executed cmd.exe /c "npm run test:all" in src (197 assertions passing across 5 suites)
+* Rewrote deployment/README.md with exhaustive Railway, Render, and Vercel setup steps
+* Updated metadata/submission.yaml with deployment placeholders
+* Updated docs/APPROACH.md with Journal Entry 11 and deployment specifications
+
+
 
 
 

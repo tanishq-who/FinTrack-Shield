@@ -9,6 +9,6 @@ submission:
   project_name: "FinTrack Shield"
   repository: "https://github.com/tanishq-who/FinTrack-Shield.git"
   commit_sha: ""  # Freeze with git rev-parse HEAD when committing
-  deployment_url: "http://localhost:3000"
-  health_url: "http://localhost:3001/api/health"
+  deployment_url: "https://<your-subdomain>.vercel.app"  # Placeholder: Update with your Vercel deployment URL
+  health_url: "https://<your-backend-service>.up.railway.app/api/health"  # Placeholder: Update with your Railway/Render /api/health URL
   submitted_at: "2026-10-05T15:50:00+05:30"

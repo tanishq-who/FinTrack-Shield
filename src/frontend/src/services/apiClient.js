@@ -3,11 +3,16 @@
  * Centralized fetch client with JWT authentication, error formatting, and currency conversion.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = rawApiUrl.replace(/\/+$/, '');
 const TOKEN_KEY = 'fintrack_token';
 const USER_KEY = 'fintrack_user';
 
 export const apiClient = {
+  get baseUrl() {
+    return API_BASE_URL;
+  },
+
   getBaseUrl() {
     return API_BASE_URL;
   },
