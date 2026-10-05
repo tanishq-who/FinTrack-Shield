@@ -3,7 +3,7 @@ import { Layout } from './components/layout/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 import { BudgetsPage } from './pages/BudgetsPage';
-import { InsightsPlaceholder } from './pages/RoutePlaceholders';
+import { InsightsPage } from './pages/InsightsPage';
 import './styles/main.css';
 
 export function App() {
@@ -24,7 +24,7 @@ export function App() {
       case 'budgets':
         return <BudgetsPage />;
       case 'insights':
-        return <InsightsPlaceholder onNavigate={(route) => setActiveRoute(route)} />;
+        return <InsightsPage simulatedState={stateMode} onNavigate={(route) => setActiveRoute(route)} />;
       default:
         return (
           <DashboardPage

@@ -847,3 +847,134 @@ Actions Taken:
 * Audited all 14 Transactions requirements against codebase
 * Executed production build check (npm run build succeeded with code 0)
 * Verified navigation continuity between Dashboard and Transactions
+
+================================================================================
+[2026-10-05T14:07:45+05:30] Financial Insights Page Architecture & Full Implementation
+================================================================================
+User Prompt (verbatim):
+Continue the FinTrack frontend implementation.
+
+IMPORTANT:
+- FRONTEND UI ONLY.
+- Do NOT modify backend, authentication, database, security logic, admin features, exports, or AI.
+- Do NOT create a new frontend folder.
+- Reuse the existing src structure, components, styles, services, and navigation.
+- Do NOT commit or push.
+
+Build the Insights page.
+
+Requirements:
+
+1. Insights page
+   - Page title: Financial Insights
+   - Short description explaining that insights are based on the user's financial activity.
+
+2. Key insights
+   Display useful cards/sections for:
+   - Top spending category
+   - Monthly spending comparison
+   - Recurring payments
+   - Budget risk warning
+   - Savings opportunity/suggestion
+
+3. Spending analysis
+   Include:
+   - Current month spending
+   - Previous month spending
+   - Difference/percentage change
+   - Simple visual comparison using existing chart components or styling
+
+4. Budget risk
+   Clearly identify categories:
+   - Safe
+   - Near budget limit
+   - Over budget
+
+5. Savings suggestion
+   Show a simple actionable suggestion based on available mock/user data.
+
+6. "Why am I seeing this?"
+   Every important insight should have a small explanation or expandable section explaining:
+   - What data was used
+   - Why the insight is being shown
+   - Keep the explanation simple and user-friendly
+
+7. Data/service layer
+   - Create/reuse an insights service
+   - If backend endpoints are not ready, use clearly separated mock data
+   - Keep API calls isolated for later backend integration
+   - Do not hardcode backend URLs throughout components
+
+8. States
+   - Loading
+   - Empty/no insights
+   - Error
+   - Normal state
+
+9. Responsive design
+   - Desktop
+   - Tablet
+   - Mobile
+   - No horizontal overflow
+
+10. Design
+   - Reuse existing FinTrack design system
+   - Dark navy + white + emerald/teal
+   - Professional finance dashboard appearance
+   - Accessible and keyboard friendly
+
+11. Navigation
+   - Connect Insights to the existing sidebar/navbar
+   - Do not break Dashboard, Transactions, or Budgets
+
+12. Verification
+   - Run the frontend build
+   - Fix all errors
+   - Verify all four pages:
+     Dashboard
+     Transactions
+     Budgets
+     Insights
+
+13. Documentation
+   - Update docs only if repository instructions require it.
+
+When finished, report:
+- files created/modified
+- route added
+- components added
+- service/mock data added
+- build/test result
+- backend integration points
+
+Do NOT commit or push.
+
+Agent Response:
+Architected and implemented the complete Financial Insights page for FinTrack Shield. Developed insightsService with decoupled mock and REST adapters. Implemented comprehensive analytics cards for: (1) Top spending category breakdown, (2) Monthly spending comparison between September and October with visual delta meter, (3) Active recurring subscriptions and SaaS billing cycles, (4) Budget risk radar highlighting safe, near-limit, and overspent categories, and (5) Actionable savings recommendations. Included expandable 'Why am I seeing this?' transparency sections on every insight detailing data source and algorithmic rationale. Configured responsive grid, all 4 UI states (loading, empty, error, normal), and wired the route into App.jsx. Verified build passes with 0 errors across all 4 modules.
+
+Agent Response Summary:
+Built the Financial Insights page with spending analysis, monthly comparisons, budget risk radar, recurring subscriptions, savings recommendations, and 'Why am I seeing this?' explainers. Connected route in App.jsx, verified all 4 pages, and validated production build with zero errors and no backend modifications.
+
+Commit SHA:
+Pending user manual commit (as requested: 'Do NOT commit or push.')
+
+Files Modified / Created:
+* src/frontend/src/services/mockInsightsData.js (Created)
+* src/frontend/src/services/insightsService.js (Created)
+* src/frontend/src/components/insights/InsightCard.jsx (Created)
+* src/frontend/src/components/insights/SpendingAnalysisCard.jsx (Created)
+* src/frontend/src/components/insights/BudgetRiskRadar.jsx (Created)
+* src/frontend/src/components/insights/RecurringPaymentsCard.jsx (Created)
+* src/frontend/src/components/insights/SavingsSuggestionsCard.jsx (Created)
+* src/frontend/src/pages/InsightsPage.jsx (Created)
+* src/frontend/src/App.jsx (Modified)
+* src/frontend/src/styles/main.css (Modified)
+* docs/logs.txt (Modified)
+
+Actions Taken:
+* Appended turn 9 log entry to docs/logs.txt
+* Created mockInsightsData and insightsService with decoupled data layer
+* Built reusable InsightCard with expandable 'Why am I seeing this?' explainer drawer
+* Implemented SpendingAnalysisCard, BudgetRiskRadar, RecurringPaymentsCard, and SavingsSuggestionsCard
+* Built InsightsPage with Loading, Empty, Error, and Populated states
+* Connected route in App.jsx and tested production build

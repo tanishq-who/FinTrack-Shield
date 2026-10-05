@@ -1691,3 +1691,582 @@ html, body {
     display: none;
   }
 }
+
+/* ==========================================================================
+   Financial Insights Page Styles
+   ========================================================================== */
+
+/* Insights Multi-Column Grid */
+.insights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+/* Individual Insight Card */
+.insight-card {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-4);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.insight-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.insight-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.insight-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.insight-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  margin: 0;
+}
+
+.insight-card-subtitle {
+  font-size: 0.78rem;
+  color: var(--color-text-dark-muted);
+  margin-top: 2px;
+}
+
+.insight-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* "Why am I seeing this?" Transparency Section */
+.insight-explainer-section {
+  border-top: 1px dashed var(--color-surface-border);
+  padding-top: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.sug-explainer-wrapper {
+  border-top: 1px dashed var(--color-surface-border-subtle);
+  padding-top: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.explainer-toggle-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-emerald-600);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 4px 0;
+  transition: color var(--transition-fast);
+  font-family: inherit;
+}
+
+.explainer-toggle-btn:hover {
+  color: var(--color-emerald-700);
+}
+
+.explainer-toggle-btn:focus-visible {
+  outline: 2px solid var(--color-emerald-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.toggle-chevron {
+  font-size: 0.65rem;
+  color: var(--color-text-dark-subtle);
+}
+
+.explainer-content-drawer {
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-surface-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-top: var(--space-2);
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.explainer-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.explainer-tag {
+  font-weight: 700;
+  color: var(--color-text-dark-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 135px;
+}
+
+.explainer-text {
+  color: var(--color-text-dark);
+  line-height: 1.45;
+}
+
+/* Spending Velocity Comparison Card */
+.spending-comparison-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background-color: var(--color-surface-subtle);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-surface-border);
+}
+
+.comparison-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.comparison-label-group {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.month-name-label {
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.month-amount-label {
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.comparison-bar-track {
+  height: 10px;
+  background-color: var(--color-surface-alt);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  border: 1px solid var(--color-surface-border);
+}
+
+.comparison-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fill-current {
+  background: linear-gradient(90deg, var(--color-teal-500), var(--color-emerald-500));
+}
+
+.fill-previous {
+  background-color: var(--color-text-dark-subtle);
+}
+
+.comparison-delta-callout {
+  background-color: var(--color-emerald-50);
+  border: 1px solid var(--color-emerald-100);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.delta-icon {
+  font-size: 1.15rem;
+}
+
+.delta-text {
+  font-size: 0.82rem;
+  color: var(--color-emerald-800);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Top Category Highlight */
+.top-category-highlight {
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-surface-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+
+.top-cat-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-emerald-600);
+  letter-spacing: 0.05em;
+}
+
+.top-cat-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.top-cat-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  margin: 0;
+}
+
+.top-cat-note {
+  font-size: 0.72rem;
+  color: var(--color-text-dark-muted);
+  margin-top: 2px;
+}
+
+.top-cat-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.top-cat-percent {
+  font-size: 0.72rem;
+  color: var(--color-text-dark-muted);
+  margin-left: 4px;
+}
+
+/* Budget Threshold Risk Radar */
+.risk-radar-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.risk-group {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-overspent {
+  background-color: var(--color-danger-bg);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.group-warning {
+  background-color: var(--color-warning-bg);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.group-safe {
+  background-color: var(--color-emerald-50);
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.risk-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.risk-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+.risk-group-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.group-overspent .risk-group-title {
+  color: var(--color-danger);
+}
+
+.group-warning .risk-group-title {
+  color: var(--color-warning-text);
+}
+
+.group-safe .risk-group-title {
+  color: var(--color-emerald-700);
+}
+
+.risk-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.risk-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.risk-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.risk-cat-name {
+  font-weight: 600;
+  color: var(--color-text-dark);
+}
+
+.risk-cat-val {
+  font-weight: 600;
+}
+
+/* Recurring Subscriptions & Commitments */
+.recurring-payments-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.recurring-header-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--color-text-dark-muted);
+}
+
+.rec-count-note {
+  font-weight: 600;
+  color: var(--color-text-dark-muted);
+}
+
+.recurring-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recurring-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-surface-border);
+  background-color: var(--color-surface-subtle);
+  transition: background-color var(--transition-fast);
+}
+
+.recurring-item:hover {
+  background-color: var(--color-surface-alt);
+}
+
+.recurring-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recurring-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.recurring-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-dark);
+  margin: 0;
+}
+
+.recurring-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.next-date-label {
+  font-size: 0.7rem;
+  color: var(--color-text-dark-muted);
+}
+
+.recurring-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.recurring-amount {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+}
+
+.recurring-freq {
+  font-size: 0.7rem;
+  color: var(--color-text-dark-muted);
+}
+
+/* Savings Opportunities Card */
+.savings-suggestions-card {
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.savings-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.total-savings-badge {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--color-emerald-50), var(--color-teal-50));
+  border: 1px solid var(--color-emerald-200);
+  color: var(--color-emerald-700);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.suggestion-item {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-surface-border);
+  background-color: var(--color-surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.suggestion-item:hover {
+  border-color: var(--color-emerald-300);
+  box-shadow: var(--shadow-sm);
+}
+
+.suggestion-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sug-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sug-spark-icon {
+  font-size: 1.1rem;
+}
+
+.suggestion-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-dark);
+  margin: 0;
+}
+
+.savings-amount-pill {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-emerald-100);
+  color: var(--color-emerald-800);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.suggestion-desc {
+  font-size: 0.82rem;
+  color: var(--color-text-dark-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Responsive Overrides for Insights */
+@media (max-width: 1024px) {
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .savings-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .top-cat-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .top-cat-details > div:last-child {
+    text-align: left !important;
+  }
+
+  .suggestion-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .explainer-tag {
+    min-width: 100px;
+  }
+}
+
